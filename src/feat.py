@@ -2,7 +2,7 @@ import pandas as pd
 import pandas_ta as ta
 import numpy as np
 
-def calculate_features(df: pd.DataFrame) -> pd.DataFrame:
+def create_features(df: pd.DataFrame, atr_period: int = 14, fast_ma: int = 20, slow_ma: int = 60) -> pd.DataFrame:
     """
     根據輸入的日線資料 DataFrame，計算多項技術指標特徵。
 
@@ -10,35 +10,26 @@ def calculate_features(df: pd.DataFrame) -> pd.DataFrame:
     附加到原始 DataFrame 的後方，原始的 OHLCV 欄位不會被修改。
     計算過程中產生的 NaN 值會被直接保留。
 
-    計算的指標包括：
-    - SMA_20: 20日簡單移動平均線 (基於收盤價)
-    - SMA_60: 60日簡單移動平均線 (基於收盤價)
-    - ATR_14: 14日平均真實波幅
-    - RET_SIMPLE: 簡單日報酬率 (基於收盤價)
-    - RET_LOG: 對數日報酬率 (基於收盤價)
-
     Args:
         df: 包含 'Open', 'High', 'Low', 'Close', 'Volume' 欄位的
             乾淨 Pandas DataFrame。
+        atr_period (int): 計算 ATR 的週期。
+        fast_ma (int): 計算快速移動平均線的週期。
+        slow_ma (int): 計算慢速移動平均線的週期。
 
     Returns:
         一個包含原始資料以及新增特徵欄位的新的 Pandas DataFrame。
-
-    Note:
-        `pandas-ta` 函式庫的許多功能 (例如 `ta.atr`) 在設計上是針對
-        DataFrame 進行操作的，需要同時傳入 High, Low, Close 等欄位。
-        直接在單一的 Series 上使用其 `.ta` 擴充功能可能會導致非預期的錯誤。
     """
     # 複製一份資料以避免修改原始 DataFrame
     df_feat = df.copy()
 
     # 1. 計算移動平均線 (SMA)
-    df_feat['SMA_20'] = df_feat['Close'].rolling(window=20).mean()
-    df_feat['SMA_60'] = df_feat['Close'].rolling(window=60).mean()
+    df_feat[f'SMA_{fast_ma}'] = df_feat['Close'].rolling(window=fast_ma).mean()
+    df_feat[f'SMA_{slow_ma}'] = df_feat['Close'].rolling(window=slow_ma).mean()
 
     # 2. 計算平均真實波幅 (ATR)
     # pandas-ta 會自動尋找 High, Low, Close 欄位
-    df_feat['ATR_14'] = ta.atr(high=df_feat['High'], low=df_feat['Low'], close=df_feat['Close'], length=14)
+    df_feat[f'ATR_{atr_period}'] = ta.atr(high=df_feat['High'], low=df_feat['Low'], close=df_feat['Close'], length=atr_period)
 
     # 3. 計算日報酬率
     # 簡單報酬率

@@ -2,55 +2,54 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 
-def analyze_volatility_hypotheses(df: pd.DataFrame, atr_window: int = 14, ma_window: int = 30) -> pd.DataFrame:
+def run_statistical_tests(df: pd.DataFrame, significance_level: float = 0.05, atr_period: int = 14) -> dict:
     """
-    分析波動率假說，比較高波動日與低波動日之後的平均報酬是否有顯著差異。
-
-    此函式嚴格遵循研究設計，執行以下操作：
-    1. 根據 ATR 指標及其移動平均來定義「高波動日」與「低波動日」。
-    2. 準備 t+1 的隔日簡單報酬率 (`RET_SIMPLE`) 作為分析目標。
-    3. 建立高/低波動日之後的報酬樣本群組。
-    4. 使用 Welch's t-test (不假設等變異數) 檢定兩組平均報酬的差異是否顯著。
-    5. 回傳一個包含樣本數、平均報酬、t-statistic 和 p-value 的匯總 DataFrame。
+    執行波動率假說的 t-test 檢定。
 
     Args:
-        df: 包含 'ATR_14', 'RET_SIMPLE' 等特徵的 Pandas DataFrame。
-        atr_window: ATR 的計算天期 (預設為 14)。
-        ma_window: 用於定義波動狀態的移動平均天期 (預設為 30)。
+        df (pd.DataFrame): 包含特徵的 DataFrame (需要 'ATR_X' 和 'RET_SIMPLE')。
+        significance_level (float): 統計顯著性水準。
+        atr_period (int): 用於尋找 ATR 欄位的週期。
 
     Returns:
-        一個匯總統計結果的 Pandas DataFrame，包含 'Regime', 'Count',
-        'Mean_Return', 'T_Statistic', 'P_Value' 等欄位。
+        dict: 包含統計檢定結果的摘要字典。
     """
     df_analysis = df.copy()
+    atr_col = f'ATR_{atr_period}'
 
-    # 1. 計算 ATR 的移動平均
-    atr_col = f'ATR_{atr_window}'
-    df_analysis['ATR_MA'] = df_analysis[atr_col].rolling(window=ma_window).mean()
+    if atr_col not in df_analysis.columns:
+        raise ValueError(f"錯誤: 找不到 '{atr_col}' 欄位。請先執行特徵工程。")
+    if 'RET_SIMPLE' not in df_analysis.columns:
+        raise ValueError("錯誤: 找不到 'RET_SIMPLE' 欄位。")
 
-    # 2. 定義高低波動狀態 (Regime)
-    df_analysis['Regime'] = np.where(df_analysis[atr_col] > df_analysis['ATR_MA'], 'High', 'Low')
-
-    # 3. 準備隔日報酬 (目標變數)
+    # 定義高低波動狀態
+    atr_ma = df_analysis[atr_col].rolling(window=30).mean()
+    df_analysis['Regime'] = np.where(df_analysis[atr_col] > atr_ma, 'High', 'Low')
     df_analysis['Next_Day_Return'] = df_analysis['RET_SIMPLE'].shift(-1)
 
-    # 4. 建立高低波動樣本群組
     high_vol_returns = df_analysis[df_analysis['Regime'] == 'High']['Next_Day_Return'].dropna()
     low_vol_returns = df_analysis[df_analysis['Regime'] == 'Low']['Next_Day_Return'].dropna()
 
-    # 5. 執行獨立樣本 t-test
-    # 使用 equal_var=False 執行 Welch's t-test，這在兩樣本變異數未知時更穩健
-    ttest_result = stats.ttest_ind(high_vol_returns, low_vol_returns, equal_var=False, nan_policy='omit')
+    if len(high_vol_returns) < 2 or len(low_vol_returns) < 2:
+        return {
+            "error": "樣本數不足，無法執行 t-test。",
+            "high_vol_count": len(high_vol_returns),
+            "low_vol_count": len(low_vol_returns)
+        }
 
-    # 6. 建立並回傳結果 DataFrame
-    results = {
-        'Regime': ['High', 'Low'],
-        'Count': [len(high_vol_returns), len(low_vol_returns)],
-        'Mean_Return': [high_vol_returns.mean(), low_vol_returns.mean()],
-        'T_Statistic': [ttest_result.statistic, ttest_result.statistic],
-        'P_Value': [ttest_result.pvalue, ttest_result.pvalue]
+    # 執行 Welch's t-test
+    ttest_result = stats.ttest_ind(high_vol_returns, low_vol_returns, equal_var=False)
+
+    # 建立結果摘要
+    summary = {
+        "hypothesis": "檢定高波動日與低波動日之後的平均報酬是否存在顯著差異",
+        "t_statistic": ttest_result.statistic,
+        "p_value": ttest_result.pvalue,
+        "significance_level": significance_level,
+        "is_significant": ttest_result.pvalue < significance_level,
+        "high_vol_mean_return": high_vol_returns.mean(),
+        "low_vol_mean_return": low_vol_returns.mean(),
+        "high_vol_count": len(high_vol_returns),
+        "low_vol_count": len(low_vol_returns)
     }
-
-    results_df = pd.DataFrame(results)
-
-    return results_df
+    return summary
