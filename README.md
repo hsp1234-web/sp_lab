@@ -1,5 +1,7 @@
 # VOL-FUTURE-LAB：指數期貨波動率量化研究
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hsp123_4-web/sp_lab/blob/2/sp_lab.ipynb)
+
 本專案是一個以 Python 進行的指數期貨波動率量化研究平台。旨在建立一個以終端環境可獨立運作、具備高速數據分析與回測能力的完整流程，用於驗證「波動率」與「價格變動」之間的統計關係，並將其轉化為可回測的交易策略。
 
 ## ✨ 核心特色
