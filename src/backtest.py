@@ -2,7 +2,7 @@
 # 回測引擎核心模組
 
 import pandas as pd
-from src.cost import calculate_simple_cost
+from .cost import calculate_simple_cost
 
 def run_backtest(
     price_data: pd.DataFrame,

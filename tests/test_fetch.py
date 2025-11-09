@@ -28,7 +28,7 @@ def test_download_gspc_creates_file(setup_teardown):
     assert not os.path.exists(OUTPUT_FILE), f"測試前置作業失敗，檔案 {OUTPUT_FILE} 已存在。"
 
     # 2. 執行目標函式
-    download_gspc()
+    download_gspc(OUTPUT_FILE)
 
     # 3. 驗證結果：檔案在執行後已建立
     assert os.path.exists(OUTPUT_FILE), f"函式執行後，檔案 {OUTPUT_FILE} 未被建立。"
