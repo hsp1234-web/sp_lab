@@ -1,14 +1,11 @@
-import pandas as pd
-import numpy as np
-
 def generate_signals(
-    df: pd.DataFrame,
+    df,
     high_vol_trend: int,
     use_sma_filter: bool = False,
     atr_window: int = 14,
     ma_window: int = 30,
     sma_window: int = 20
-) -> pd.DataFrame:
+):
     """
     根據市場特徵與統計結論，產生交易訊號。
 
@@ -28,6 +25,9 @@ def generate_signals(
         一個附加了 'signal' (整數) 和 'signal_reason' (文字) 欄位的
         新的 Pandas DataFrame。
     """
+    import pandas as pd
+    import numpy as np
+
     df_signal = df.copy()
 
     # --- 1. 定義波動狀態 ---
@@ -87,7 +87,7 @@ def generate_signals(
     return df_signal
 
 
-def adjust_signals_for_execution(df_with_signals: pd.DataFrame, max_delay_days: int = 3) -> pd.DataFrame:
+def adjust_signals_for_execution(df_with_signals, max_delay_days: int = 3):
     """
     根據交易日曆調整訊號的實際執行時間，處理延遲與取消。
 
@@ -98,6 +98,8 @@ def adjust_signals_for_execution(df_with_signals: pd.DataFrame, max_delay_days: 
     Returns:
         一個調整了 signal 和 signal_exec_when 欄位的 DataFrame。
     """
+    import pandas as pd
+
     df_adjusted = df_with_signals.copy()
 
     # 假設 df_adjusted.index 包含了所有有效的交易日
