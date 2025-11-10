@@ -1,12 +1,14 @@
 # VOL-FUTURE-LAB：指數期貨波動率量化研究
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hsp1234-web/sp_lab/blob/2.5/sp_lab.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hsp1234-web/sp_lab/blob/2.6/sp_lab.ipynb)
 
 本專案是一個以 Python 進行的指數期貨波動率量化研究平台。旨在建立一個以終端環境可獨立運作、具備高速數據分析與回測能力的完整流程，用於驗證「波動率」與「價格變動」之間的統計關係，並將其轉化為可回測的交易策略。
 
 ## ✨ 核心特色
 
+-   **一鍵 Colab 執行**：透過 `sp_lab.ipynb` 提供一鍵執行的 Colab 環境，無需本地設定。
 -   **現代化工具鏈**：使用 `uv` 進行高速的 Python 環境與依賴管理。
+-   **受控的執行入口**：透過根目錄的 `run.py` 腳本，解決模組匯入衝突，確保執行的穩定性。
 -   **測試驅動開發 (TDD)**：所有核心模組均有對應的單元測試，確保程式碼的穩健性與可維護性。
 -   **模組化管線**：從數據獲取、清洗、特徵工程、統計分析、訊號生成到回測與視覺化，皆為獨立且可串連的模組。
 -   **貼近真實的回測**：內建成本與滑價模擬，讓策略評估更具參考價值。
@@ -31,27 +33,13 @@ uv pip install -r requirements.txt
 
 ### 2. 執行完整流程
 
-專案的每個 `.py` 檔案都代表一個獨立的步驟，依照以下順序執行即可完成一次完整的從數據下載到分析的流程。
+透過專案根目錄的 `run.py` 腳本，即可一鍵執行完整的端到端回測流程。
 
 ```bash
 # (請確保虛擬環境已啟用)
 
-# 步驟 1: 下載原始數據
-python src/fetch.py
-
-# 步驟 2: 清洗數據並對齊交易日
-python src/clean.py
-
-# 步驟 3: 計算技術指標 (特徵工程)
-python src/feat.py
-
-# 步驟 4: 執行統計假說檢定
-python src/stats.py
-
-# 步驟 5: 根據統計結果生成交易訊號
-python src/signal.py
-
-# (後續步驟：執行回測與視覺化，通常會整合在一個主腳本中)
+# 🚀 執行！
+python run.py
 ```
 
 ### 3. 執行測試

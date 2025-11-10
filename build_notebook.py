@@ -4,7 +4,9 @@ from nbformat.v4 import new_notebook, new_code_cell
 def create_notebook():
     """以程式化的方式建立一個新的、結構優化過的 Jupyter Notebook。"""
 
-    # --- 儲存格 1: 設定並同步專案程式碼 (合併後) ---
+    # --- 儲存格 1: 設定並同步專案程式碼 ---
+    # 更新重點：
+    # - GIT_BRANCH 的預設值改為 "2.6"。
     cell1_code = """\
 #@title 1. 設定並同步專案程式碼
 # --- 解說 ---
@@ -16,7 +18,7 @@ from IPython import get_ipython
 
 # --- 參數設定 ---
 GITHUB_REPO_URL = "https://github.com/hsp1234-web/sp_lab.git" #@param {type:"string"}
-GIT_BRANCH = "2.5" #@param {type:"string"}
+GIT_BRANCH = "2.6" #@param {type:"string"}
 
 print("✅ 參數設定完成！")
 print(f"   - 儲存庫: {GITHUB_REPO_URL}")
@@ -42,7 +44,8 @@ print(f"✅ 程式碼同步完成！專案路徑: {local_repo_path}")
 """
     cell1 = new_code_cell(cell1_code, metadata={"title": "1. 設定並同步專案程式碼", "colab": {"code_folded": True}})
 
-    # --- 儲存格 2: 安裝 Python 相依套件 (優化說明後) ---
+    # --- 儲存格 2: 安裝 Python 相依套件 ---
+    # (此儲存格無需修改)
     cell2_code = """\
 #@title 2. 安裝 Python 相依套件
 # --- 解說 ---
@@ -68,41 +71,36 @@ else:
 """
     cell2 = new_code_cell(cell2_code, metadata={"title": "2. 安裝 Python 相依套件", "colab": {"code_folded": True}})
 
-    # --- 儲存格 3: 【一鍵執行】啟動主流程 (更新編號) ---
+    # --- 儲存格 3: 【一鍵執行】啟動主流程 ---
+    # 更新重點：
+    # - 移除手動設定 sys.path 的程式碼。
+    # - 將執行目標從 'src/main.py' 改為根目錄下的 'run.py'。
+    # - 更新相關路徑與說明文字。
     cell3_code = """\
 #@title 3. 【一鍵執行】啟動主流程
 # --- 解說 ---
 # 這是專案的核心執行儲存格。
-# 它會進入 `src` 目錄，並呼叫 `main.py` 腳本來完整執行整個量化研究流程，
-# 包含數據獲取、清洗、特徵建立、訊號生成、回測、成本分析與視覺化。
+# 它會從專案的根目錄，呼叫我們設計的 `run.py` 腳本來啟動整個流程。
+# `run.py` 會自動處理 Python 模組的路徑問題，並執行包含回測、視覺化的完整流程。
 # 最終的權益曲線圖將會直接顯示在此儲存格的輸出中。
 import os
-import sys
 from IPython import get_ipython
 from IPython.display import Image, display
 
 local_repo_path = os.environ['LOCAL_REPO_PATH']
-src_path = os.path.join(local_repo_path, 'src')
-
-# --- 環境設定：將 src 目錄加入 Python 執行路徑 ---
-# 這是關鍵步驟，確保 `main.py` 中的 `import fetch` 等語句能正確找到模組。
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
-    print(f"🐍 已將原始碼路徑 '{src_path}' 加入 Python 執行環境。")
-
-output_path = os.path.join(src_path, 'output')
-main_script_path = os.path.join(src_path, 'main.py')
-equity_curve_path = os.path.join(output_path, 'equity_curve.jpg')
+run_script_path = os.path.join(local_repo_path, 'run.py')
+equity_curve_path = os.path.join(local_repo_path, 'src', 'output', 'equity_curve.jpg')
 
 ipython = get_ipython()
 
-if not os.path.exists(main_script_path):
-    print(f"❌ 錯誤：找不到主執行檔 {main_script_path}")
+if not os.path.exists(run_script_path):
+    print(f"❌ 錯誤：找不到主執行檔 {run_script_path}")
 else:
-    print("\\n🚀 即將啟動全自動化回測流程...")
-    ipython.run_line_magic('cd', src_path)
-    ipython.run_line_magic('run', 'main.py')
-    print("✅ 主流程執行完畢！")
+    # 執行 run.py 前，需確保當前目錄位於專案根目錄
+    ipython.run_line_magic('cd', local_repo_path)
+
+    # 使用 %run 來執行，這能確保腳本在當前的 IPython kernel 中執行
+    ipython.run_line_magic('run', 'run.py')
 
     # 顯示最終產出的圖表
     if os.path.exists(equity_curve_path):
@@ -134,4 +132,4 @@ if __name__ == "__main__":
     notebook = create_notebook()
     with open('sp_lab.ipynb', 'w') as f:
         nbformat.write(notebook, f)
-    print("✅ `sp_lab.ipynb` 檔案已成功建立。")
+    print("✅ `sp_lab.ipynb` 檔案已成功建立/更新。")
