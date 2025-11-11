@@ -5,12 +5,13 @@
 這個腳本是為了提供一個穩定且唯一的命令列執行介面，特別是用於解決在不同
 環境下 (例如本地 vs. Google Colab) 可能出現的 Python 模組路徑問題。
 
-核心功能：
-1.  **強制載入本地模組**：它使用 `importlib` 函式庫，從明確的檔案路徑
-    直接載入 `src/main.py` 模組。
-2.  **根除命名衝突**：這個方法繞過了標準的 Python `sys.path` 搜尋機制，
-    從而避免 Colab 環境優先載入系統內建 `signal` 函式庫的問題，確保
-    我們自己的 `src/signal.py` 被正確使用。
+核心功能 (組合方案)：
+1.  **動態設定執行路徑**：它會將 `src` 目錄的絕對路徑添加到 Python 的
+    系統搜尋路徑 (`sys.path`) 的最前端。這一步是為了解決 `main.py`
+    內部無法找到 `fetch`, `clean` 等同級模組的問題。
+2.  **強制載入本地模組**：接著，它使用 `importlib` 函式庫，從明確的
+    檔案路徑直接載入 `src/main.py` 模組。這一步是為了解決 `signal`
+    模組與系統內建函式庫的命名衝突問題。
 3.  **啟動主流程**：成功載入模組後，它會執行 `main.py` 中的 `main`
     函式，啟動整個自動化回測流程。
 """
@@ -25,8 +26,6 @@ def main():
     """
     try:
         # --- 步驟 1: 定義 `src` 和 `main.py` 的絕對路徑 ---
-        #    os.path.abspath(__file__) 獲取目前腳本的絕對路徑
-        #    os.path.dirname(...) 獲取該腳本所在的目錄 (專案根目錄)
         project_root = os.path.dirname(os.path.abspath(__file__))
         src_path = os.path.join(project_root, 'src')
         main_py_path = os.path.join(src_path, 'main.py')
@@ -35,31 +34,27 @@ def main():
             print(f"❌ 錯誤：找不到主執行檔 {main_py_path}")
             return
 
-        # --- 步驟 2: 使用 importlib 從檔案路徑強制載入模組 ---
-        #    這是解決 Colab 環境命名衝突的關鍵步驟。
+        # --- 步驟 2: 將 `src` 目錄加入 sys.path (解決內部匯入問題) ---
+        if src_path not in sys.path:
+            sys.path.insert(0, src_path)
+            print(f"✅ 已將原始碼路徑 '{src_path}' 加入 Python 執行環境的最前端。")
 
-        # a. 建立一個模組規範 (spec)，告訴 Python 如何載入這個檔案
-        #    我們將模組命名為 "main"，這樣它內部的相對匯入才能正常運作
+        # --- 步驟 3: 使用 importlib 從檔案路徑強制載入模組 (解決 signal 衝突) ---
         spec = importlib.util.spec_from_file_location("main", main_py_path)
         if spec is None or spec.loader is None:
             raise ImportError(f"無法從 {main_py_path} 建立模組規範。")
 
-        # b. 根據規範，建立一個新的模組物件
         main_module = importlib.util.module_from_spec(spec)
-
-        # c. 將這個模組物件加入到系統的模組快取中
-        #    這一步很重要，可以讓 `main.py` 內部的 `from feat import ...` 找到彼此
         sys.modules["main"] = main_module
 
-        # d. 最後，實際執行模組內的程式碼
         spec.loader.exec_module(main_module)
 
         print(f"✅ 已從指定路徑 '{main_py_path}' 強制載入主模組。")
 
-        # --- 步驟 3: 呼叫載入的模組中的 main 函式 ---
-        print("\n🚀 即將啟動全自動化回測流程...")
+        # --- 步驟 4: 呼叫載入的模組中的 main 函式 ---
+        # print("\n🚀 即將啟動全自動化回測流程...") # main.py 內部已有此訊息，避免重複
         main_module.main()
-        print("\n✅ 主流程執行完畢！")
+        # print("\n✅ 主流程執行完畢！") # main.py 內部已有此訊息，避免重複
 
     except ImportError as e:
         print(f"❌ 匯入錯誤：請確認 `src/main.py` 及其內部匯入的模組是否都存在。")
