@@ -21,13 +21,13 @@ import pandas as pd
 # 為了讓這個腳本在 Colab 環境中能被 `%run` 指令正確執行，
 # 呼叫它的 Notebook 必須先把 `src` 目錄的路徑加入到 `sys.path` 中。
 
-from fetch import download_gspc
-from clean import clean_data
-from feat import calculate_features
-from signal import generate_signals, adjust_signals_for_execution
-from backtest import run_backtest
-from cost import calculate_simple_cost
-from viz import plot_equity_curve, calculate_performance_metrics
+from src.fetch import download_gspc
+from src.clean import clean_data
+from src.feat import calculate_features
+from src.sp_signal import generate_signals, adjust_signals_for_execution
+from src.backtest import run_backtest
+from src.cost import calculate_simple_cost
+from src.viz import plot_equity_curve, calculate_performance_metrics
 
 # ----------------------------------------------------------------------------
 # 全域設定與路徑管理
@@ -43,11 +43,11 @@ DATA_DIR = os.path.join(BASE_DIR, '..', 'data') # 退回到專案根目錄，再
 RAW_DATA_PATH = os.path.join(DATA_DIR, 'raw', 'gspc_raw.parquet')
 CLEAN_DATA_PATH = os.path.join(DATA_DIR, 'processed', 'gspc_clean.parquet')
 FEATURES_PATH = os.path.join(DATA_DIR, 'processed', 'features.parquet')
-SIGNALS_PATH = os.path.join(DATA_DIR, 'processed', 'signals.parquet')
+SIGNALS_PATH = os.path.join(DATA_DIR, 'processed', 'sp_signals.parquet')
 
 OUTPUT_DIR = os.path.join(BASE_DIR, 'output')
-EQUITY_CURVE_PATH = os.path.join(OUTPUT_DIR, 'equity_curve.jpg')
-TRADE_LOG_PATH = os.path.join(OUTPUT_DIR, 'trade_log.csv')
+EQUITY_CURVE_PATH = os.path.join(OUTPUT_DIR, 'sp_equity_curve.jpg')
+TRADE_LOG_PATH = os.path.join(OUTPUT_DIR, 'sp_trade_log.csv')
 
 # --- 回測參數 ---
 INIT_CAPITAL = 100000.0  # 初始資金
@@ -117,20 +117,16 @@ def main():
     # 考量到非交易日，對理想訊號進行延遲與取消的調整
     executable_signals_df = adjust_signals_for_execution(ideal_signals_df)
 
-    # 將訊號與價格數據對齊，方便回測模組使用
-    signals_df = pd.DataFrame({
-        'price': features_df_for_signal['Close'],
-        'signal': executable_signals_df['signal'].squeeze()
-    }).ffill()
-    signals_df.to_parquet(SIGNALS_PATH)
-    print(f"✅ 交易訊號生成完成，已儲存至 {SIGNALS_PATH}")
+    # 儲存包含所有詳細資訊的訊號 DataFrame
+    executable_signals_df.to_parquet(SIGNALS_PATH)
+    print(f"✅ 交易訊號生成完成（包含詳細原因），已儲存至 {SIGNALS_PATH}")
     print("-" * 40)
 
     # --- 步驟 5: 執行回測 ---
     print("--- [ 步驟 5/7 ] 正在執行回測模擬 (包含交易成本) ---")
     trade_log, equity_curve = run_backtest(
         price_data=features_df_for_signal,
-        signals=signals_df['signal'],
+        signals=executable_signals_df['signal'],
         init_cap=INIT_CAPITAL,
         pos_size=POS_SIZE,
         cost_mode='simple', # 指定使用 'simple' 成本模型

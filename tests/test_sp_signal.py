@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import pytest
-from src.signal import generate_signals, adjust_signals_for_execution
+from src.sp_signal import generate_signals, adjust_signals_for_execution
 
 # 定義測試檔案路徑
 FEATURES_DATA_PATH = "tests/sample_parquets/features_for_stats.parquet"

@@ -89,7 +89,7 @@ from IPython.display import Image, display
 
 local_repo_path = os.environ['LOCAL_REPO_PATH']
 run_script_path = os.path.join(local_repo_path, 'run.py')
-equity_curve_path = os.path.join(local_repo_path, 'src', 'output', 'equity_curve.jpg')
+equity_curve_path = os.path.join(local_repo_path, 'src', 'output', 'sp_equity_curve.jpg')
 
 ipython = get_ipython()
 
