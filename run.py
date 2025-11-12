@@ -10,7 +10,7 @@
     系統搜尋路徑 (`sys.path`) 的最前端。這一步是為了解決 `main.py`
     內部無法找到 `fetch`, `clean` 等同級模組的問題。
 2.  **強制載入本地模組**：接著，它使用 `importlib` 函式庫，從明確的
-    檔案路徑直接載入 `src/main.py` 模組。這一步是為了解決 `signal`
+    檔案路徑直接載入 `src/main.py` 模組。這一步是為了解決 `sp_signal`
     模組與系統內建函式庫的命名衝突問題。
 3.  **啟動主流程**：成功載入模組後，它會執行 `main.py` 中的 `main`
     函式，啟動整個自動化回測流程。
@@ -34,12 +34,12 @@ def main():
             print(f"❌ 錯誤：找不到主執行檔 {main_py_path}")
             return
 
-        # --- 步驟 2: 將 `src` 目錄加入 sys.path (解決內部匯入問題) ---
-        if src_path not in sys.path:
-            sys.path.insert(0, src_path)
-            print(f"✅ 已將原始碼路徑 '{src_path}' 加入 Python 執行環境的最前端。")
+        # --- 步驟 2: 將專案根目錄加入 sys.path (確保 `from src.module` 可行) ---
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
+            print(f"✅ 已將專案根目錄 '{project_root}' 加入 Python 執行環境的最前端。")
 
-        # --- 步驟 3: 使用 importlib 從檔案路徑強制載入模組 (解決 signal 衝突) ---
+        # --- 步驟 3: 使用 importlib 從檔案路徑強制載入模組 (解決 sp_signal 衝突) ---
         spec = importlib.util.spec_from_file_location("main", main_py_path)
         if spec is None or spec.loader is None:
             raise ImportError(f"無法從 {main_py_path} 建立模組規範。")

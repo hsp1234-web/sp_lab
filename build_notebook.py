@@ -6,7 +6,7 @@ def create_notebook():
 
     # --- 儲存格 1: 設定並同步專案程式碼 ---
     # 更新重點：
-    # - GIT_BRANCH 的預設值改為 "2.6"。
+    # - GIT_BRANCH 的預設值改為 "2.8"。
     cell1_code = """\
 #@title 1. 設定並同步專案程式碼
 # --- 解說 ---
@@ -18,7 +18,7 @@ from IPython import get_ipython
 
 # --- 參數設定 ---
 GITHUB_REPO_URL = "https://github.com/hsp1234-web/sp_lab.git" #@param {type:"string"}
-GIT_BRANCH = "2.6" #@param {type:"string"}
+GIT_BRANCH = "2.8" #@param {type:"string"}
 
 print("✅ 參數設定完成！")
 print(f"   - 儲存庫: {GITHUB_REPO_URL}")
@@ -89,7 +89,7 @@ from IPython.display import Image, display
 
 local_repo_path = os.environ['LOCAL_REPO_PATH']
 run_script_path = os.path.join(local_repo_path, 'run.py')
-equity_curve_path = os.path.join(local_repo_path, 'src', 'output', 'equity_curve.jpg')
+equity_curve_path = os.path.join(local_repo_path, 'src', 'output', 'sp_equity_curve.jpg')
 
 ipython = get_ipython()
 

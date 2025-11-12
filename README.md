@@ -1,6 +1,6 @@
 # VOL-FUTURE-LAB：指數期貨波動率量化研究
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hsp1234-web/sp_lab/blob/2.6/sp_lab.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hsp1234-web/sp_lab/blob/2.8/sp_lab.ipynb)
 
 本專案是一個以 Python 進行的指數期貨波動率量化研究平台。旨在建立一個以終端環境可獨立運作、具備高速數據分析與回測能力的完整流程，用於驗證「波動率」與「價格變動」之間的統計關係，並將其轉化為可回測的交易策略。
 
@@ -75,7 +75,7 @@ PYTHONPATH=. uv run pytest tests/test_backtest.py
 │   ├── cost.py
 │   ├── feat.py
 │   ├── fetch.py
-│   ├── signal.py
+│   ├── sp_signal.py
 │   ├── stats.py
 │   └── viz.py
 └── tests
@@ -89,7 +89,7 @@ PYTHONPATH=. uv run pytest tests/test_backtest.py
     ├── test_feat.py
     ├── test_fetch.py
     ├── test_integration.py
-    ├── test_signal.py
+    ├── test_sp_signal.py
     ├── test_stats.py
     └── test_viz.py
 ```
@@ -100,7 +100,7 @@ PYTHONPATH=. uv run pytest tests/test_backtest.py
 -   **`src/clean.py`**: 對原始數據進行清洗、處理缺值、對齊交易日等。
 -   **`src/feat.py`**: 計算技術指標（如 ATR、移動平均線）作為策略的基礎特徵。
 -   **`src/stats.py`**: 執行統計分析與假說檢定，驗證策略的有效性。
--   **`src/signal.py`**: 根據統計結果，生成具體的買賣訊號 (`1`, `-1`, `0`)。
+-   **`src/sp_signal.py`**: 根據統計結果，生成具體的買賣訊號 (`1`, `-1`, `0`)。
 -   **`src/backtest.py`**: 核心回測引擎，根據訊號模擬交易過程，並產出交易日誌與權益曲線。
 -   **`src/cost.py`**: 交易成本模型，用於模擬手續費與滑價。
 -   **`src/viz.py`**: 視覺化工具，將回測結果繪製成圖表，並計算績效指標。

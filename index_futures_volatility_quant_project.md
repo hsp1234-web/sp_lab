@@ -16,7 +16,7 @@
 -   [x] **`src/clean.py`**: 數據清洗
 -   [x] **`src/feat.py`**: 特徵工程
 -   [x] **`src/stats.py`**: 統計檢定
--   [x] **`src/signal.py`**: 訊號生成
+-   [x] **`src/sp_signal.py`**: 訊號生成
 -   [x] **`src/backtest.py`**: 回測引擎
 -   [x] **`src/cost.py`**: 成本模型
 -   [x] **`src/viz.py`**: 視覺化與績效報告
@@ -82,7 +82,7 @@ project-root/
 │  ├─ clean.py                   # 清洗、對齊交易日
 │  ├─ feat.py                    # 特徵工程（ATR、MA、報酬率等）
 │  ├─ stats.py                   # 統計實驗與假說驗證
-│  ├─ signal.py                  # 交易訊號生成
+│  ├─ sp_signal.py                  # 交易訊號生成
 │  ├─ backtest.py                # 回測引擎（含交易邏輯）
 │  ├─ cost.py                    # 成本與滑價模擬
 │  ├─ viz.py                     # 結果視覺化與報告
@@ -93,7 +93,7 @@ project-root/
 │  ├─ test_clean.py
 │  ├─ test_feat.py
 │  ├─ test_stats.py
-│  ├─ test_signal.py
+│  ├─ test_sp_signal.py
 │  ├─ test_backtest.py
 │  └─ sample_parquets/           # 測試專用小樣本資料
 │
@@ -121,7 +121,7 @@ project-root/
 | clean.py    | 清洗與交易日對齊                   | raw parquet      | proc parquet     |
 | feat.py     | 特徵工程（ATR、MA、報酬率）           | proc parquet     | features parquet |
 | stats.py    | 驗證四大波動假說                   | features parquet | 統計結果 parquet     |
-| signal.py   | 產生進出場訊號                    | features parquet | signals parquet  |
+| sp_signal.py   | 產生進出場訊號                    | features parquet | signals parquet  |
 | backtest.py | 回測策略                       | signals、價格資料     | trade log、equity |
 | cost.py     | 模擬手續費與滑價                   | cfg 參數           | 成本值              |
 | viz.py      | 產出靜態圖表與報表                  | equity、trade log | PNG、報告           |
@@ -153,7 +153,7 @@ project-root/
 
 3. **統計與回測**
 
-   * 由 stats.py 驗證假說後，signal.py 生成交易訊號。
+   * 由 stats.py 驗證假說後，sp_signal.py 生成交易訊號。
    * backtest.py 模擬交易，cost.py 套入手續費與滑價。
 
 4. **視覺化與分析**
@@ -209,7 +209,7 @@ project-root/
 | test_clean.py    | 缺值與交易日對齊  | 缺值標記、日期順序                |
 | test_feat.py     | ATR、MA 計算 | 數值與參數一致性                 |
 | test_stats.py    | 假說驗證      | 分組樣本數、平均報酬、顯著性           |
-| test_signal.py   | 訊號生成      | 條件邏輯與重複處理                |
+| test_sp_signal.py   | 訊號生成      | 條件邏輯與重複處理                |
 | test_backtest.py | 回測        | 策略損益、手續費影響、equity 長度     |
 | test_cost.py     | 成本模擬      | 滑價/手續費模型輸出合理             |
 | test_viz.py      | 視覺化       | 圖檔是否生成、欄位是否完整            |
