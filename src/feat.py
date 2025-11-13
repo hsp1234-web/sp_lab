@@ -32,13 +32,21 @@ def calculate_features(df: pd.DataFrame) -> pd.DataFrame:
     # 複製一份資料以避免修改原始 DataFrame
     df_feat = df.copy()
 
+    # 展平 MultiIndex 欄位，例如將 ('Close', '^GSPC') 轉為 'Close'
+    if isinstance(df_feat.columns, pd.MultiIndex):
+        df_feat.columns = df_feat.columns.get_level_values(0)
+
     # 1. 計算移動平均線 (SMA)
     df_feat['SMA_20'] = df_feat['Close'].rolling(window=20).mean()
     df_feat['SMA_60'] = df_feat['Close'].rolling(window=60).mean()
 
     # 2. 計算平均真實波幅 (ATR)
-    # pandas-ta 會自動尋找 High, Low, Close 欄位
-    df_feat['ATR_14'] = ta.atr(high=df_feat['High'], low=df_feat['Low'], close=df_feat['Close'], length=14)
+    # 使用 .ta 擴充語法呼叫 ATR 計算
+    df_feat.ta.atr(length=14, append=True)
+
+    # 將 pandas-ta 產生的 'ATRr_14' 欄位重命名為 'ATR_14' 以符合下游模組的預期
+    if 'ATRr_14' in df_feat.columns:
+        df_feat.rename(columns={'ATRr_14': 'ATR_14'}, inplace=True)
 
     # 3. 計算日報酬率
     # 簡單報酬率
