@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import talib
 
 def calculate_features(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -22,11 +23,6 @@ def calculate_features(df: pd.DataFrame) -> pd.DataFrame:
 
     Returns:
         一個包含原始資料以及新增特徵欄位的新的 Pandas DataFrame。
-
-    Note:
-        `pandas-ta` 函式庫的許多功能 (例如 `ta.atr`) 在設計上是針對
-        DataFrame 進行操作的，需要同時傳入 High, Low, Close 等欄位。
-        直接在單一的 Series 上使用其 `.ta` 擴充功能可能會導致非預期的錯誤。
     """
     # 複製一份資料以避免修改原始 DataFrame
     df_feat = df.copy()
@@ -40,12 +36,12 @@ def calculate_features(df: pd.DataFrame) -> pd.DataFrame:
     df_feat['SMA_60'] = df_feat['Close'].rolling(window=60).mean()
 
     # 2. 計算平均真實波幅 (ATR)
-    # 使用 .ta 擴充語法呼叫 ATR 計算
-    df_feat.ta.atr(length=14, append=True)
+    # 為了確保與 TA-Lib C 函式庫的最佳相容性，我們明確地將資料轉換為 float64 的 NumPy 陣列
+    high_prices = df_feat['High'].to_numpy(dtype=np.double)
+    low_prices = df_feat['Low'].to_numpy(dtype=np.double)
+    close_prices = df_feat['Close'].to_numpy(dtype=np.double)
 
-    # 將 pandas-ta 產生的 'ATRr_14' 欄位重命名為 'ATR_14' 以符合下游模組的預期
-    if 'ATRr_14' in df_feat.columns:
-        df_feat.rename(columns={'ATRr_14': 'ATR_14'}, inplace=True)
+    df_feat['ATR_14'] = talib.ATR(high_prices, low_prices, close_prices, timeperiod=14)
 
     # 3. 計算日報酬率
     # 簡單報酬率

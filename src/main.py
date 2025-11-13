@@ -24,7 +24,7 @@ import pandas as pd
 from src.fetch import download_gspc
 from src.clean import clean_data
 from src.feat import calculate_features
-from src.sp_signal import generate_signals, adjust_signals_for_execution
+from src.sp_signal import generate_signals, adjust_signals_for_execution, generate_buy_and_hold_signals
 from src.backtest import run_backtest
 from src.cost import calculate_simple_cost
 from src.viz import plot_equity_curve, calculate_performance_metrics
@@ -48,6 +48,10 @@ SIGNALS_PATH = os.path.join(DATA_DIR, 'processed', 'sp_signals.parquet')
 OUTPUT_DIR = os.path.join(BASE_DIR, 'output')
 EQUITY_CURVE_PATH = os.path.join(OUTPUT_DIR, 'sp_equity_curve.jpg')
 TRADE_LOG_PATH = os.path.join(OUTPUT_DIR, 'sp_trade_log.csv')
+
+# --- 策略選擇 ---
+# 可選 'volatility' 或 'buy_and_hold'
+STRATEGY = 'buy_and_hold'
 
 # --- 回測參數 ---
 INIT_CAPITAL = 100000.0  # 初始資金
@@ -110,12 +114,20 @@ def main():
     # 重新讀取 features_df 以確保索引正確
     features_df_for_signal = pd.read_parquet(FEATURES_PATH)
 
-    # 根據研究結論，我們假設高波動後應做空 (trend = -1)
-    # 且不使用 SMA 趨勢過濾器
-    ideal_signals_df = generate_signals(features_df_for_signal, high_vol_trend=-1, use_sma_filter=False)
+    if STRATEGY == 'volatility':
+        # --- 波動率策略 ---
+        # 根據研究結論，我們假設高波動後應做空 (trend = -1)
+        # 且不使用 SMA 趨勢過濾器
+        ideal_signals_df = generate_signals(features_df_for_signal, high_vol_trend=-1, use_sma_filter=False)
+        # 考量到非交易日，對理想訊號進行延遲與取消的調整
+        executable_signals_df = adjust_signals_for_execution(ideal_signals_df)
 
-    # 考量到非交易日，對理想訊號進行延遲與取消的調整
-    executable_signals_df = adjust_signals_for_execution(ideal_signals_df)
+    elif STRATEGY == 'buy_and_hold':
+        # --- 買入並持有策略 ---
+        executable_signals_df = generate_buy_and_hold_signals(features_df_for_signal)
+
+    else:
+        raise ValueError(f"未知的策略選項：'{STRATEGY}'。請從 'volatility' 或 'buy_and_hold' 中選擇。")
 
     # 儲存包含所有詳細資訊的訊號 DataFrame
     executable_signals_df.to_parquet(SIGNALS_PATH)

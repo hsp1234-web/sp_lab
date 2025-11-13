@@ -1,3 +1,6 @@
+import pandas as pd
+import numpy as np
+
 def generate_signals(
     df,
     high_vol_trend: int,
@@ -25,9 +28,6 @@ def generate_signals(
         一個附加了 'signal' (整數) 和 'signal_reason' (文字) 欄位的
         新的 Pandas DataFrame。
     """
-    import pandas as pd
-    import numpy as np
-
     df_signal = df.copy()
 
     # --- 1. 定義波動狀態 ---
@@ -132,3 +132,31 @@ def adjust_signals_for_execution(df_with_signals, max_delay_days: int = 3):
             df_adjusted.loc[day, 'signal_reason'] = "Cancelled (No Future Trading Day)"
 
     return df_adjusted
+
+
+def generate_buy_and_hold_signals(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    產生「買入並持有」策略的訊號。
+
+    Args:
+        df: 包含價格數據的 Pandas DataFrame。
+
+    Returns:
+        一個附加了 'signal' 和 'signal_reason' 欄位的 DataFrame。
+    """
+    df_signal = df.copy()
+
+    # 從頭到尾都持有倉位
+    df_signal['signal'] = 1
+    df_signal['signal_reason'] = "Buy and Hold Strategy"
+
+    # 在倒數第二天發出平倉訊號 (0)，以確保在最後一天開盤時執行平倉
+    if len(df_signal) > 1:
+        df_signal.iloc[-2, df_signal.columns.get_loc('signal')] = 0
+        df_signal.iloc[-2, df_signal.columns.get_loc('signal_reason')] = "Signal to Close Position for Backtest End"
+
+        # 確保最後一天的訊號也是 0
+        df_signal.iloc[-1, df_signal.columns.get_loc('signal')] = 0
+        df_signal.iloc[-1, df_signal.columns.get_loc('signal_reason')] = "Position Closed"
+
+    return df_signal
