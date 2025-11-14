@@ -6,7 +6,8 @@ import pandas as pd
 import os
 
 from src.backtest import run_backtest
-from src.viz import calculate_performance_metrics, plot_equity_curve
+from src.stats import calculate_backtest_stats # <-- 修正導入
+from src.viz import plot_equity_curve
 
 @pytest.fixture
 def setup_integration_data():
@@ -26,19 +27,21 @@ def setup_integration_data():
 
     cost_params = {"fees_per_unit": 10.0, "slippage_per_unit": 1.0}
 
-    return price_data, signals, cost_params
+    initial_capital = 100000.0
+
+    return price_data, signals, cost_params, initial_capital
 
 def test_full_pipeline(setup_integration_data, tmp_path):
     """
     測試從回測到視覺化的完整流程。
     """
-    price_data, signals, cost_params = setup_integration_data
+    price_data, signals, cost_params, initial_capital = setup_integration_data
 
     # 1. 執行回測 (含成本)
     trade_log, equity_curve = run_backtest(
         price_data=price_data,
         signals=signals,
-        init_cap=100000,
+        init_cap=initial_capital,
         pos_size=1,
         cost_mode='simple',
         cost_params=cost_params
@@ -47,12 +50,16 @@ def test_full_pipeline(setup_integration_data, tmp_path):
     assert not trade_log.empty
     assert not equity_curve.empty
 
-    # 2. 計算績效指標
-    metrics = calculate_performance_metrics(equity_curve)
+    # 2. 計算績效指標 (更新函式呼叫)
+    metrics = calculate_backtest_stats(
+        trade_log=trade_log,
+        equity_curve=equity_curve,
+        initial_capital=initial_capital
+    )
 
-    assert 'total_return' in metrics
-    assert 'max_drawdown' in metrics
-    assert 'sharpe_ratio' in metrics
+    assert '總報酬率' in metrics
+    assert '最大回撤 (MDD)' in metrics
+    assert '夏普比率' in metrics
 
     # 3. 產生視覺化圖表
     output_path = tmp_path / "integration_equity_curve.jpg"

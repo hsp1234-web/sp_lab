@@ -13,7 +13,8 @@ def sample_dataframe() -> pd.DataFrame:
 
 @pytest.fixture(scope="module")
 def features_dataframe(sample_dataframe) -> pd.DataFrame:
-    """執行特徵計算並回傳結果 DataFrame。"""
+    """執行特徵計算並回傳結果 DataFrame (使用預設參數)。"""
+    # 使用預設參數呼叫函式
     return calculate_features(sample_dataframe)
 
 def test_sma_values(features_dataframe, sample_dataframe):
@@ -33,8 +34,8 @@ def test_atr_values(features_dataframe, sample_dataframe):
     # 更精確的驗證可以在需要時，針對一個極小的 DataFrame 進行。
     assert (features_dataframe['ATR_14'].dropna() > 0).all(), "ATR 應為正數。"
 
-    # 驗證第 14 筆資料 (index 13) 的 ATR 不為 NaN
-    assert not pd.isna(features_dataframe['ATR_14'].iloc[13]), "ATR_14 在第 14 天應有值。"
+    # TA-Lib 的 ATR 實作需要 14 個週期來 '暖機'，因此第一個非 NaN 值出現在第 15 天 (索引 14)
+    assert not pd.isna(features_dataframe['ATR_14'].iloc[14]), "TA-Lib ATR_14 在第 15 天應有值。"
 
 def test_returns(features_dataframe, sample_dataframe):
     """驗證 RET_SIMPLE 和 RET_LOG 的數值是否正確。"""
@@ -56,9 +57,9 @@ def test_nan_preserved(features_dataframe):
     assert features_dataframe['SMA_20'].iloc[:19].isna().all(), "SMA_20 的前 19 筆應為 NaN。"
     assert not pd.isna(features_dataframe['SMA_20'].iloc[19]), "SMA_20 的第 20 筆不應為 NaN。"
 
-    # ATR_14 的前 13 筆應為 NaN (Talib 的 ATR 實作在第 14 天會有第一個值)
-    assert features_dataframe['ATR_14'].iloc[:13].isna().all(), "ATR_14 的前 13 筆應為 NaN。"
-    assert not pd.isna(features_dataframe['ATR_14'].iloc[13]), "ATR_14 的第 14 筆不應為 NaN。"
+    # TA-Lib 的 ATR 實作需要 14 個週期來 '暖機'，因此第一個非 NaN 值出現在第 15 天 (索引 14)
+    assert features_dataframe['ATR_14'].iloc[:14].isna().all(), "ATR_14 的前 14 筆應為 NaN。"
+    assert not pd.isna(features_dataframe['ATR_14'].iloc[14]), "ATR_14 的第 15 筆不應為 NaN。"
 
     # RET_* 的第一筆應為 NaN
     assert pd.isna(features_dataframe['RET_SIMPLE'].iloc[0]), "RET_SIMPLE 的第一筆應為 NaN。"

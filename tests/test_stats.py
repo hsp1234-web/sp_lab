@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import pytest
 from scipy import stats
-from src.stats import analyze_volatility_hypotheses # 預期從 src/stats.py 導入函式
+from src.stats import analyze_volatility_hypotheses, calculate_backtest_stats # <-- 修正導入
 
 # 定義測試檔案路徑
 FEATURES_DATA_PATH = "tests/sample_parquets/features_for_stats.parquet"
@@ -64,3 +64,32 @@ def test_volatility_analysis_results(sample_features_dataframe):
     # 斷言：P-value (只需比較一次)
     # 我們假設函式回傳的 p-value 會放在 DataFrame 的某個地方，這裡假設是 'P_Value' 欄
     assert np.isclose(actual_results_df['P_Value'].iloc[0], expected_results['p_value'])
+
+
+@pytest.fixture
+def sample_trade_log_and_equity_curve():
+    """提供一個用於績效計算測試的樣本交易日誌和權益曲線。"""
+    dates = pd.to_datetime(['2025-01-01', '2025-01-02', '2025-01-03', '2025-01-04'])
+    equity = [100000, 101000, 99000, 102000]
+    equity_curve = pd.DataFrame({'equity': equity}, index=dates)
+
+    trade_log = pd.DataFrame({
+        'pnl': [1000, -2000, 3000]
+    })
+
+    initial_capital = 100000.0
+
+    return trade_log, equity_curve, initial_capital
+
+def test_calculate_backtest_stats(sample_trade_log_and_equity_curve):
+    """
+    測試績效指標計算是否正確。
+    """
+    trade_log, equity_curve, initial_capital = sample_trade_log_and_equity_curve
+
+    metrics = calculate_backtest_stats(trade_log, equity_curve, initial_capital)
+
+    assert metrics['總報酬率'] == 0.02
+    assert metrics['最大回撤 (MDD)'] == pytest.approx(0.01980, abs=1e-5)
+    assert metrics['夏普比率'] == pytest.approx(4.304, abs=1e-3)
+    assert metrics['勝率'] == pytest.approx(2/3)

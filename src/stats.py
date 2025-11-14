@@ -47,10 +47,80 @@ def analyze_volatility_hypotheses(df: pd.DataFrame, atr_window: int = 14, ma_win
         'Regime': ['High', 'Low'],
         'Count': [len(high_vol_returns), len(low_vol_returns)],
         'Mean_Return': [high_vol_returns.mean(), low_vol_returns.mean()],
-        'T_Statistic': [ttest_result.statistic, ttest_result.statistic],
+        'T_Statistic': [ttest_result.statistic, ttest_result.pvalue],
         'P_Value': [ttest_result.pvalue, ttest_result.pvalue]
     }
 
     results_df = pd.DataFrame(results)
 
     return results_df
+
+
+def calculate_backtest_stats(
+    trade_log: pd.DataFrame,
+    equity_curve: pd.DataFrame,
+    initial_capital: float,
+    trading_days_per_year: int = 252
+) -> dict:
+    """
+    根據交易日誌和權益曲線，計算並返回多個關鍵的回測績效指標。
+
+    Args:
+        trade_log (pd.DataFrame): 包含所有已完成交易紀錄的 DataFrame。
+        equity_curve (pd.DataFrame): 包含每日權益變化的 DataFrame。
+        initial_capital (float): 初始資金。
+        trading_days_per_year (int): 每年的交易日數，用於年化計算。
+
+    Returns:
+        dict: 包含詳細績效指標的字典。
+    """
+    if trade_log.empty:
+        return {
+            "總交易次數": 0,
+            "總報酬率": 0.0,
+            "最大回撤 (MDD)": 0.0,
+            "夏普比率": 0.0,
+            "勝率": 0.0,
+            "平均獲利": 0.0,
+            "平均虧損": 0.0,
+            "盈虧比": 0.0
+        }
+
+    # 1. 總報酬率
+    final_equity = equity_curve['equity'].iloc[-1]
+    total_return = (final_equity - initial_capital) / initial_capital
+
+    # 2. 最大回撤 (MDD)
+    cumulative_max = equity_curve['equity'].cummax()
+    drawdown = (equity_curve['equity'] - cumulative_max) / cumulative_max
+    max_drawdown = drawdown.min()
+
+    # 3. 年化夏普比率
+    daily_returns = equity_curve['equity'].pct_change().dropna()
+    if len(daily_returns) < 2 or daily_returns.std() == 0:
+        sharpe_ratio = 0.0
+    else:
+        sharpe_ratio = (daily_returns.mean() / daily_returns.std()) * np.sqrt(trading_days_per_year)
+
+    # 4. 交易相關指標
+    total_trades = len(trade_log)
+    winning_trades = trade_log[trade_log['pnl'] > 0]
+    losing_trades = trade_log[trade_log['pnl'] <= 0]
+
+    win_rate = len(winning_trades) / total_trades if total_trades > 0 else 0.0
+
+    avg_profit = winning_trades['pnl'].mean() if len(winning_trades) > 0 else 0.0
+    avg_loss = losing_trades['pnl'].mean() if len(losing_trades) > 0 else 0.0
+
+    profit_loss_ratio = abs(avg_profit / avg_loss) if avg_loss != 0 else np.inf
+
+    return {
+        "總交易次數": total_trades,
+        "總報酬率": total_return,
+        "最大回撤 (MDD)": abs(max_drawdown),
+        "夏普比率": sharpe_ratio if not np.isnan(sharpe_ratio) else 0.0,
+        "勝率": win_rate,
+        "平均獲利": avg_profit,
+        "平均虧損": avg_loss,
+        "盈虧比": profit_loss_ratio
+    }
