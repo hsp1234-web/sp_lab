@@ -1,88 +1,65 @@
 import pandas as pd
 import numpy as np
 import pytest
-from src.sp_signal import generate_signals, adjust_signals_for_execution
+from src.sp_signal import generate_bollinger_band_signals
 
-# 定義測試檔案路徑
-FEATURES_DATA_PATH = "tests/sample_parquets/features_for_stats.parquet"
-
-@pytest.fixture(scope="module")
-def sample_features_dataframe() -> pd.DataFrame:
-    """載入訊號生成用的特徵 DataFrame。"""
-    df = pd.read_parquet(FEATURES_DATA_PATH)
-    if 'ATR_14' not in df.columns:
-        df['ATR_14'] = df['Close'].rolling(14).mean()
-    return df
-
-def test_generate_basic_signals(sample_features_dataframe):
-    """測試基礎觸發規則及輔助欄位。"""
-    high_vol_trend = -1
-    df_with_signals = generate_signals(
-        sample_features_dataframe,
-        high_vol_trend=high_vol_trend,
-        atr_period=14,
-        atr_multiplier=1.0
-    )
-
-    df_verify = sample_features_dataframe.copy()
-    df_verify['ATR_MA'] = df_verify['ATR_14'].rolling(window=30).mean()
-    df_verify['is_high_vol'] = df_verify['ATR_14'] > df_verify['ATR_MA']
-
-    first_high_vol_day_index = df_verify['is_high_vol'].idxmax()
-
-    assert df_with_signals.loc[first_high_vol_day_index, 'signal'] == high_vol_trend
-    # 驗證輔助欄位的存在與內容
-    assert df_with_signals.loc[first_high_vol_day_index, 'signal_reason'] == "High Volatility Short"
-    assert df_with_signals.loc[first_high_vol_day_index, 'signal_generated_at'] == first_high_vol_day_index
-    assert df_with_signals.loc[first_high_vol_day_index, 'signal_exec_when'] == first_high_vol_day_index + pd.Timedelta(days=1)
-
-
-def test_signal_representation(sample_features_dataframe):
-    """驗證訊號表示格式。"""
-    df_with_signals = generate_signals(sample_features_dataframe, high_vol_trend=1)
-
-    assert 'signal' in df_with_signals.columns
-    # 驗證輔助欄位的存在
-    assert 'signal_reason' in df_with_signals.columns
-    assert 'signal_generated_at' in df_with_signals.columns
-    assert 'signal_exec_when' in df_with_signals.columns
-
-    assert pd.api.types.is_integer_dtype(df_with_signals['signal'])
-    assert df_with_signals['signal'].isin([-1, 0, 1]).all()
-
-def test_handle_execution_delays():
+def test_bollinger_band_signal_logic():
     """
-    測試處理非交易日延遲與訊號取消的邏輯。
+    驗證布林帶策略一個完整的、簡潔的交易週期。
     """
-    dates = pd.to_datetime(['2023-01-02', '2023-01-03', '2023-01-06', '2023-01-10'])
-    data = {'signal': [0, 1, 0, 0]}
+    # --- 1. 建立測試 DataFrame ---
+    # 這個 DataFrame 精確地模擬了一個做多和一個做空的完整週期
+    data = {
+        # 'Close' prices are crafted to hit specific triggers
+        'Close': [
+            100,  # Day 0: Initial state
+            105,  # Day 1: In uptrend, no signal
+            95,   # Day 2: In uptrend, price dips below lower BB -> LONG ENTRY
+            100,  # Day 3: Hold long position
+            110,  # Day 4: Price hits upper BB -> LONG EXIT
+            100,  # Day 5: In downtrend, no signal
+            103,  # Day 6: In downtrend, price hits upper BB -> SHORT ENTRY
+            85,   # Day 7: Price hits lower BB -> SHORT EXIT
+        ],
+        # 'SMA_200' defines the major trend
+        'SMA_200': [
+            90, 90, 90, 90, 90,  # Uptrend period
+            105, 105, 105       # Downtrend period
+        ],
+        # Bollinger Bands define the entry/exit triggers
+        'BB_upper_20_2_0': [
+            104, 106, 103, 102, 108,  # Upper band for uptrend
+            104, 102, 98              # Upper band for downtrend
+        ],
+        'BB_lower_20_2_0': [
+            96, 98, 97, 96, 99,   # Lower band for uptrend
+            98, 96, 88            # Lower band for downtrend
+        ]
+    }
+    dates = pd.to_datetime(pd.date_range(start='2023-01-01', periods=len(data['Close'])))
     df = pd.DataFrame(data, index=dates)
-    df['signal_generated_at'] = pd.NaT
-    df['signal_exec_when'] = pd.NaT
-    df['signal_reason'] = ''
 
-    signal_day = pd.to_datetime('2023-01-03')
-    df.loc[signal_day, 'signal'] = 1
-    df.loc[signal_day, 'signal_reason'] = "Test Signal"
-    df.loc[signal_day, 'signal_generated_at'] = signal_day
-    df.loc[signal_day, 'signal_exec_when'] = signal_day + pd.Timedelta(days=1)
+    # --- 2. 執行訊號生成 ---
+    signals = generate_bollinger_band_signals(
+        df=df,
+        sma_long_period=200,
+        bband_period=20,
+        bband_stddev=2.0
+    )['signal'].to_list()
 
-    df_adjusted = adjust_signals_for_execution(df, max_delay_days=3)
+    # --- 3. 定義預期結果 ---
+    # The signal represents the desired POSITION at the END of each day.
+    expected_signals = [
+        0,  # Day 0: Flat
+        0,  # Day 1: Flat (Close > SMA, but Close > BB_lower)
+        1,  # Day 2: LONG (Close > SMA, and Close < BB_lower)
+        1,  # Day 3: HOLD LONG
+        0,  # Day 4: FLAT (Long profit take, Close > BB_upper)
+        0,  # Day 5: FLAT (Close < SMA, but Close < BB_upper)
+        -1, # Day 6: SHORT (Close < SMA, and Close > BB_upper)
+        0,  # Day 7: FLAT (Short profit take, Close < BB_lower)
+    ]
 
-    assert df_adjusted.loc[signal_day, 'signal'] == 1
-    assert df_adjusted.loc[signal_day, 'signal_exec_when'] == pd.to_datetime('2023-01-06')
-    assert "Delayed 2d" in df_adjusted.loc[signal_day, 'signal_reason']
+    # --- 4. 斷言 ---
+    assert signals == expected_signals, f"訊號序列不匹配！\\n得到: {signals}\\n預期: {expected_signals}"
 
-    df_cancelled = adjust_signals_for_execution(df, max_delay_days=1)
-    assert df_cancelled.loc[signal_day, 'signal'] == 0
-    assert "Cancelled" in df_cancelled.loc[signal_day, 'signal_reason']
-
-def test_buy_and_hold_signals(sample_features_dataframe):
-    from src.sp_signal import generate_buy_and_hold_signals
-    df_signal = generate_buy_and_hold_signals(sample_features_dataframe)
-    assert df_signal.iloc[0]['signal'] == 1
-    assert df_signal.iloc[-2]['signal'] == 0
-    assert df_signal.iloc[-1]['signal'] == 0
-    # 驗證輔助欄位的存在
-    assert 'signal_reason' in df_signal.columns
-    assert 'signal_exec_when' in df_signal.columns

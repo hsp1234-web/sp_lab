@@ -4,9 +4,10 @@ import pandas as pd
 
 from deap import base, creator, tools, algorithms
 
-# 核心模組導入 (已重構)
+# --- 核心模組導入 ---
 from src.feat import calculate_features
-from src.sp_signal import generate_signals
+# 導入新的布林帶訊號生成器，並保留舊的以備不時之需
+from src.sp_signal import generate_bollinger_band_signals, generate_signals
 from src.backtest import run_backtest
 from src.stats import calculate_backtest_stats
 
@@ -15,35 +16,53 @@ INITIAL_CAPITAL = 100000.0
 POSITION_SIZE = 1
 
 # --- 基因演算法設定 ---
+# 確保在重新執行時不會出錯
+try:
+    del creator.FitnessMax
+    del creator.Individual
+except AttributeError:
+    pass
+
 creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create("Individual", list, fitness=creator.FitnessMax)
 toolbox = base.Toolbox()
 
-# --- 策略參數空間定義 ---
-ATR_PERIOD_RANGE = (5, 50)
-ATR_MULTIPLIER_RANGE = (1.0, 5.0)
-HIGH_VOL_TREND_CHOICES = [-1, 1]
+# --- 新策略的參數空間定義 (布林帶) ---
+SMA_LONG_PERIOD_RANGE = (50, 250)
+BBAND_PERIOD_RANGE = (10, 60)
+BBAND_STDDEV_RANGE = (1.5, 3.5)
 
-toolbox.register("attr_atr_period", random.randint, ATR_PERIOD_RANGE[0], ATR_PERIOD_RANGE[1])
-toolbox.register("attr_atr_multiplier", random.uniform, ATR_MULTIPLIER_RANGE[0], ATR_MULTIPLIER_RANGE[1])
-toolbox.register("attr_high_vol_trend", random.choice, HIGH_VOL_TREND_CHOICES)
+toolbox.register("attr_sma_long_period", random.randint, SMA_LONG_PERIOD_RANGE[0], SMA_LONG_PERIOD_RANGE[1])
+toolbox.register("attr_bband_period", random.randint, BBAND_PERIOD_RANGE[0], BBAND_PERIOD_RANGE[1])
+toolbox.register("attr_bband_stddev", random.uniform, BBAND_STDDEV_RANGE[0], BBAND_STDDEV_RANGE[1])
+
 toolbox.register("individual", tools.initCycle, creator.Individual,
-                 (toolbox.attr_atr_period, toolbox.attr_atr_multiplier, toolbox.attr_high_vol_trend), n=1)
+                 (toolbox.attr_sma_long_period, toolbox.attr_bband_period, toolbox.attr_bband_stddev), n=1)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
-# --- 適應度評估函式 (最終版本) ---
+# --- 適應度評估函式 (已更新為布林帶策略) ---
 def evaluate_strategy(individual: list, training_data: pd.DataFrame) -> tuple:
-    atr_period, atr_multiplier, high_vol_trend = individual[0], individual[1], individual[2]
+    """
+    評估一個「個體」(一組策略參數) 的適應度 (夏普比率)。
+    """
+    # 解包參數
+    sma_long_period, bband_period, bband_stddev = individual[0], individual[1], individual[2]
+
     try:
         # 1. 動態計算特徵
-        features_df = calculate_features(training_data, atr_period=int(atr_period))
+        features_df = calculate_features(
+            training_data,
+            sma_long_period=int(sma_long_period),
+            bband_period=int(bband_period),
+            bband_stddev=bband_stddev
+        )
 
-        # 2. 動態生成訊號
-        signals_df = generate_signals(
+        # 2. 動態生成訊號 (使用新的函式)
+        signals_df = generate_bollinger_band_signals(
             features_df,
-            high_vol_trend=high_vol_trend,
-            atr_period=int(atr_period),
-            atr_multiplier=atr_multiplier
+            sma_long_period=int(sma_long_period),
+            bband_period=int(bband_period),
+            bband_stddev=bband_stddev
         )
 
         # 3. 執行回測
@@ -55,6 +74,9 @@ def evaluate_strategy(individual: list, training_data: pd.DataFrame) -> tuple:
         )
 
         # 4. 計算績效
+        if trade_log.empty:
+            return (-100.0,) # 如果沒有交易，給予極低的懲罰分數
+
         stats = calculate_backtest_stats(
             trade_log=trade_log,
             equity_curve=equity_curve,
@@ -63,7 +85,9 @@ def evaluate_strategy(individual: list, training_data: pd.DataFrame) -> tuple:
         sharpe_ratio = stats.get("夏普比率", -100.0)
 
         return (sharpe_ratio,) if np.isfinite(sharpe_ratio) else (-100.0,)
-    except Exception:
+    except Exception as e:
+        # 在優化過程中，某些參數組合可能導致錯誤 (例如週期過長)，給予懲罰分數
+        # print(f"Error evaluating individual {individual}: {e}") # 可選的除錯輸出
         return (-100.0,)
 
 # --- 註冊遺傳演算法運算子 ---
@@ -71,13 +95,17 @@ toolbox.register("evaluate", evaluate_strategy)
 toolbox.register("mate", tools.cxTwoPoint)
 
 def custom_mutate(individual, indpb):
+    """針對新參數集的自訂突變函式。"""
+    # SMA Period
     if random.random() < indpb:
-        individual[0] = random.randint(ATR_PERIOD_RANGE[0], ATR_PERIOD_RANGE[1])
+        individual[0] = random.randint(SMA_LONG_PERIOD_RANGE[0], SMA_LONG_PERIOD_RANGE[1])
+    # BBand Period
     if random.random() < indpb:
-        individual[1] += random.gauss(0, 0.5)
-        individual[1] = np.clip(individual[1], ATR_MULTIPLIER_RANGE[0], ATR_MULTIPLIER_RANGE[1])
+        individual[1] = random.randint(BBAND_PERIOD_RANGE[0], BBAND_PERIOD_RANGE[1])
+    # BBand Stddev
     if random.random() < indpb:
-        individual[2] = random.choice(HIGH_VOL_TREND_CHOICES)
+        individual[2] += random.gauss(0, 0.2) # 較小的標準差以進行微調
+        individual[2] = np.clip(individual[2], BBAND_STDDEV_RANGE[0], BBAND_STDDEV_RANGE[1])
     return individual,
 
 toolbox.register("mutate", custom_mutate, indpb=0.2)
@@ -96,11 +124,16 @@ def run_ga_optimization(training_data: pd.DataFrame, pop_size: int, ngen: int, c
     stats.register("min", np.min)
     stats.register("max", np.max)
 
-    # 將 training_data 作為固定參數傳遞給評估函式
-    toolbox.register("map", lambda func, pop: map(lambda ind: func(ind, training_data=training_data), pop))
+    # --- 動態註冊評估函式 ---
+    # 為了將 training_data 傳遞給評估函式，我們在執行前動態註冊它
+    # 這確保了 eaSimple 可以找到一個名為 "evaluate" 的標準函式
+    toolbox.register("evaluate", evaluate_strategy, training_data=training_data)
 
     # 執行演算法
     algorithms.eaSimple(pop, toolbox, cxpb=cxpb, mutpb=mutpb, ngen=ngen,
                         stats=stats, halloffame=hof, verbose=True)
+
+    # 清理動態註冊的函式，以避免潛在的副作用
+    toolbox.unregister("evaluate")
 
     return hof[0]
