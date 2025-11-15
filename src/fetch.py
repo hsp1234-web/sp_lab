@@ -16,8 +16,7 @@ def download_gspc(output_path: str):
     os.makedirs(output_dir, exist_ok=True)
 
     # 下載資料
-    # FutureWarning: YF.download() has changed argument auto_adjust default to True
-    data = yf.download(TICKER, start="1990-01-01")
+    data = yf.download(TICKER, start="1990-01-01", auto_adjust=True)
 
     # 儲存為 Parquet 格式
     data.to_parquet(output_path)

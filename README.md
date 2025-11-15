@@ -1,6 +1,6 @@
 # VOL-FUTURE-LAB：指數期貨波動率量化研究
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hsp1234-web/sp_lab/blob/5/sp_lab.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hsp1234-web/sp_lab/blob/5.5/sp_lab.ipynb)
 
 本專案是一個以 Python 進行的指數期貨波動率量化研究平台。旨在建立一個以終端環境可獨立運作、具備高速數據分析與回測能力的完整流程，用於驗證「波動率」與「價格變動」之間的統計關係，並將其轉化為可回測的交易策略。
 
@@ -104,3 +104,10 @@ PYTHONPATH=. uv run pytest tests/test_backtest.py
 -   **`src/backtest.py`**: 核心回測引擎，根據訊號模擬交易過程，並產出交易日誌與權益曲線。
 -   **`src/cost.py`**: 交易成本模型，用於模擬手續費與滑價。
 -   **`src/viz.py`**: 視覺化工具，將回測結果繪製成圖表，並計算績效指標。
+
+## 🔧 疑難排解
+
+### Colab 環境執行問題
+
+-   **問題**: 在 Colab 中執行時，似乎沒有載入到最新的程式碼，或者出現非預期的錯誤。
+-   **解決方案**: Google Colab 有時會快取舊的程式碼版本。為了確保您執行的是最新的程式碼，請**不要**直接重新整理或執行舊的筆記本分頁。請回到 GitHub 專案頁面，**重新點擊 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hsp1234-web/sp_lab/blob/5.5/sp_lab.ipynb) 按鈕**，以開啟一個全新的、乾淨的執行環境。
