@@ -64,10 +64,20 @@ ipython = get_ipython()
 if not os.path.exists(requirements_path):
     print(f"⚠️ 警告：在專案路徑中找不到 requirements.txt 檔案。")
 else:
-    print("📦 正在強制重新安裝所有相依套件以確保二進位相容性...")
-    # 使用 --reinstall 旗標來解決 Colab 環境中因預裝套件可能導致的二進位衝突
-    ipython.run_line_magic('system', 'pip install -q uv && uv pip install --reinstall -q -r {requirements_path}')
-    print("✅ 所有套件已重新安裝完畢！")
+    # --- 釜底抽薪的解決方案 ---
+    # 由於 Colab 環境預裝的 pandas 是用新版 numpy 編譯的，
+    # 簡單降級 numpy 會導致致命的二進位衝突 (numpy.dtype size changed)。
+    # 唯一的解決辦法是，在降級 numpy 之後，強制從原始碼重新編譯 pandas。
+    print("📦 [階段 1/2] 正在安裝核心依賴...")
+    ipython.run_line_magic('system', 'pip install -q uv && uv pip install -q -r {requirements_path}')
+    print("✅ 核心依賴安裝完畢。")
+
+    print("\\n📦 [階段 2/2] 正在從原始碼重新編譯 pandas 以確保相容性...")
+    print("   (此過程可能需要幾分鐘，請耐心等候...)")
+    # --force-reinstall: 確保 pandas 被重新安裝
+    # --no-binary pandas: 禁止使用預編譯的 wheel 檔案，強制從 sdist (原始碼) 編譯
+    ipython.run_line_magic('system', 'uv pip install --force-reinstall --no-binary pandas pandas')
+    print("✅ pandas 已成功重新編譯！環境已準備就緒。")
 
 """
     cell2 = new_code_cell(cell2_code, metadata={"title": "2. 安裝 Python 相依套件", "colab": {"code_folded": True}})
