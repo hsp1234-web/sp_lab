@@ -18,7 +18,7 @@ from IPython import get_ipython
 
 # --- 參數設定 ---
 GITHUB_REPO_URL = "https://github.com/hsp1234-web/sp_lab.git" #@param {type:"string"}
-GIT_BRANCH = "5" #@param {type:"string"}
+GIT_BRANCH = "6" #@param {type:"string"}
 
 print("✅ 參數設定完成！")
 print(f"   - 儲存庫: {GITHUB_REPO_URL}")
@@ -64,8 +64,8 @@ ipython = get_ipython()
 if not os.path.exists(requirements_path):
     print(f"⚠️ 警告：在專案路徑中找不到 requirements.txt 檔案。")
 else:
-    print("📦 正在智能同步相依套件 (uv 會自動跳過已安裝項目)...")
-    ipython.run_line_magic('system', 'pip install -q uv && uv pip install -q -r {requirements_path}')
+    print("📦 正在強制重新安裝相依套件 (以解決 Colab 環境衝突)...")
+    ipython.run_line_magic('system', 'pip install -q uv && uv pip install -q --reinstall -r {requirements_path}')
     print("✅ 所有套件安裝完畢！")
 
 """
