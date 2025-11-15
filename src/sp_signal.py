@@ -87,3 +87,89 @@ def generate_buy_and_hold_signals(df: pd.DataFrame) -> pd.DataFrame:
         df_signal.iloc[-1, df_signal.columns.get_loc('signal')] = 0
         df_signal.iloc[-1, df_signal.columns.get_loc('signal_reason')] = "Position Closed"
     return df_signal
+
+def generate_bollinger_band_signals(
+    df: pd.DataFrame,
+    sma_long_period: int = 200,
+    bband_period: int = 20,
+    bband_stddev: float = 2.0
+) -> pd.DataFrame:
+    """
+    產生基於「順大勢、逆小勢」布林帶策略的交易訊號。
+
+    Args:
+        df (pd.DataFrame): 包含價格和指標特徵的 DataFrame。
+        sma_long_period (int): 長期 SMA 的週期。
+        bband_period (int): 布林帶的週期。
+        bband_stddev (float): 布林帶的標準差倍數。
+
+    Returns:
+        pd.DataFrame: 包含 'signal' 欄位的 DataFrame。
+    """
+    df_signal = df.copy()
+
+    # --- 1. 準備欄位名稱 ---
+    sma_col = f'SMA_{sma_long_period}'
+    bband_stddev_str = str(bband_stddev).replace('.', '_')
+    upper_col = f'BB_upper_{bband_period}_{bband_stddev_str}'
+    lower_col = f'BB_lower_{bband_period}_{bband_stddev_str}'
+
+    # 檢查必要欄位是否存在
+    required_cols = ['Close', sma_col, upper_col, lower_col]
+    if not all(col in df_signal.columns for col in required_cols):
+        raise ValueError(f"輸入的 DataFrame 缺少必要欄位。需要: {required_cols}")
+
+    # --- 2. 定義進出場條件 (向量化) ---
+    close = df_signal['Close']
+    sma_long = df_signal[sma_col]
+    bb_upper = df_signal[upper_col]
+    bb_lower = df_signal[lower_col]
+
+    # 做多條件
+    long_trend = close > sma_long
+    long_entry_trigger = close < bb_lower
+    long_exit_profit_trigger = close > bb_upper # 獲利了結
+    long_exit_stop_trigger = close < sma_long # 趨勢反轉停損
+
+    # 做空條件
+    short_trend = close < sma_long
+    short_entry_trigger = close > bb_upper
+    short_exit_profit_trigger = close < bb_lower # 獲利了結
+    short_exit_stop_trigger = close > sma_long # 趨勢反轉停損
+
+    # --- 3. 狀態機邏輯 (逐日模擬) ---
+    signals = np.zeros(len(df_signal))
+    position = 0  # -1 for short, 0 for flat, 1 for long
+
+    for i in range(1, len(df_signal)):
+        # --- 空手狀態：尋找進場點 ---
+        if position == 0:
+            if long_trend.iloc[i] and long_entry_trigger.iloc[i]:
+                signals[i] = 1
+                position = 1
+            elif short_trend.iloc[i] and short_entry_trigger.iloc[i]:
+                signals[i] = -1
+                position = -1
+            else:
+                signals[i] = 0 # 保持空手
+                position = 0
+        # --- 持有多頭部位：尋找出場點 ---
+        elif position == 1:
+            if long_exit_profit_trigger.iloc[i] or long_exit_stop_trigger.iloc[i]:
+                signals[i] = 0  # 產生平倉訊號
+                position = 0
+            else:
+                signals[i] = 1  # 保持持有
+                position = 1
+        # --- 持有空頭部位：尋找出場點 ---
+        elif position == -1:
+            if short_exit_profit_trigger.iloc[i] or short_exit_stop_trigger.iloc[i]:
+                signals[i] = 0  # 產生平倉訊號
+                position = 0
+            else:
+                signals[i] = -1  # 保持持有
+                position = -1
+
+    # 我們只需輸出每日的目標倉位 (0, 1, -1)，回測引擎會處理倉位變化
+    df_signal['signal'] = signals.astype(int)
+    return df_signal[['signal']]
