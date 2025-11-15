@@ -10,7 +10,7 @@ iniconfig==2.3.0
 llvmlite==0.44.0
 multitasking==0.0.12
 numba==0.61.2
-numpy==2.2.6
+numpy==1.26.4
 packaging==25.0
 pandas==2.3.3
 peewee==3.18.3
@@ -32,7 +32,7 @@ tzdata==2025.2
 urllib3==2.5.0
 websockets==15.0.1
 yfinance==0.2.66
-scipy==1.16.3
+scipy==1.14.0
 matplotlib==3.10.7
 nbformat==5.10.4
 TA-Lib==0.6.8

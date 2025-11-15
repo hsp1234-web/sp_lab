@@ -18,7 +18,7 @@ from IPython import get_ipython
 
 # --- 參數設定 ---
 GITHUB_REPO_URL = "https://github.com/hsp1234-web/sp_lab.git" #@param {type:"string"}
-GIT_BRANCH = "5" #@param {type:"string"}
+GIT_BRANCH = "6" #@param {type:"string"}
 
 print("✅ 參數設定完成！")
 print(f"   - 儲存庫: {GITHUB_REPO_URL}")
