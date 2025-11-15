@@ -18,7 +18,7 @@ def plot_equity_curve(equity_curve: pd.DataFrame, output_path: str, performance_
                                               指標將會被顯示在圖表的標題中。
     """
     plt.style.use('seaborn-v0_8-darkgrid') # 使用較美觀的樣式
-    fig, ax = plt.subplots(figsize=(12, 7))
+    fig, ax = plt.subplots(figsize=(10, 6))
 
     ax.plot(equity_curve.index, equity_curve['equity'], label='Equity Curve', color='royalblue')
     ax.set_xlabel('Date', fontsize=12)
