@@ -18,7 +18,7 @@ from IPython import get_ipython
 
 # --- 參數設定 ---
 GITHUB_REPO_URL = "https://github.com/hsp1234-web/sp_lab.git" #@param {type:"string"}
-GIT_BRANCH = "5" #@param {type:"string"}
+GIT_BRANCH = "5.5" #@param {type:"string"}
 
 print("✅ 參數設定完成！")
 print(f"   - 儲存庫: {GITHUB_REPO_URL}")
@@ -64,7 +64,7 @@ ipython = get_ipython()
 if not os.path.exists(requirements_path):
     print(f"⚠️ 警告：在專案路徑中找不到 requirements.txt 檔案。")
 else:
-    print("📦 正在智能同步相依套件 (uv 會自動跳過已安裝項目)...")
+    print("📦 正在智能同步相依套件 (僅安裝 Colab 缺失的部分)...")
     ipython.run_line_magic('system', 'pip install -q uv && uv pip install -q -r {requirements_path}')
     print("✅ 所有套件安裝完畢！")
 
@@ -77,7 +77,7 @@ else:
     # - 將執行目標從 'src/main.py' 改為根目錄下的 'run.py'。
     # - 更新相關路徑與說明文字。
     cell3_code = """\
-#@title 3. 【一鍵執行】啟動主流程
+#@title 4. 【一鍵執行】啟動主流程
 # --- 解說 ---
 # 這是專案的核心執行儲存格。
 # 它會從專案的根目錄，呼叫我們設計的 `run.py` 腳本來啟動整個流程。
@@ -112,9 +112,36 @@ else:
 """
     cell3 = new_code_cell(cell3_code, metadata={"title": "3. 【一鍵執行】啟動主流程", "colab": {"code_folded": True}})
 
+    # --- 儲存格 3: 環境健康檢查 ---
+    # 說明：此儲存格用於驗證 Colab 環境中關鍵套件的版本，確保它們與專案預期相符。
+    cell_health_check_code = """\
+#@title 3. 環境健康檢查
+# --- 解說 ---
+# 這個儲存格會檢查並顯示 Colab 環境中幾個核心 Python 套件的版本。
+# 這有助於我們快速診斷潛在的環境衝突或版本不相容問題。
+import sys
+import numpy
+import pandas
+import scipy
+import numba
+import talib
+
+print("🐍 Python 版本:")
+print(sys.version)
+print("\\n---")
+print("📊 核心套件版本:")
+print(f"  - NumPy:   {numpy.__version__}")
+print(f"  - Pandas:  {pandas.__version__}")
+print(f"  - SciPy:   {scipy.__version__}")
+print(f"  - Numba:   {numba.__version__}")
+print(f"  - TA-Lib:  {talib.__version__}")
+print("\\n✅ 環境檢查完成。")
+"""
+    cell_health_check = new_code_cell(cell_health_check_code, metadata={"title": "3. 環境健康檢查", "colab": {"code_folded": True}})
+
 
     # --- 建立 Notebook ---
-    nb = new_notebook(cells=[cell1, cell2, cell3],
+    nb = new_notebook(cells=[cell1, cell2, cell_health_check, cell3],
                       metadata={
                           "colab": {"provenance": []},
                           "kernelspec": {
