@@ -64,9 +64,10 @@ ipython = get_ipython()
 if not os.path.exists(requirements_path):
     print(f"⚠️ 警告：在專案路徑中找不到 requirements.txt 檔案。")
 else:
-    print("📦 正在智能同步相依套件 (uv 會自動跳過已安裝項目)...")
-    ipython.run_line_magic('system', 'pip install -q uv && uv pip install -q -r {requirements_path}')
-    print("✅ 所有套件安裝完畢！")
+    print("📦 正在強制重新安裝所有相依套件以確保二進位相容性...")
+    # 使用 --reinstall 旗標來解決 Colab 環境中因預裝套件可能導致的二進位衝突
+    ipython.run_line_magic('system', 'pip install -q uv && uv pip install --reinstall -q -r {requirements_path}')
+    print("✅ 所有套件已重新安裝完畢！")
 
 """
     cell2 = new_code_cell(cell2_code, metadata={"title": "2. 安裝 Python 相依套件", "colab": {"code_folded": True}})
