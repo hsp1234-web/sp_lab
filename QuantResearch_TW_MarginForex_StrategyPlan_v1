@@ -1,0 +1,171 @@
+
+### 量化交易策略研究專案詳細計畫書（自包含版本）
+
+#### 專案引言與背景
+本專案旨在開發一個模組化的 Python 量化交易研究框架，聚焦台灣股市（TWSE/TAIEX）、期貨市場（TAIFEX）與相關金融數據，如大盤指數（^TWII）、融資維持率、匯率（USDTWD）與外資買賣超。專案基於量化交易策略完整研究指南，涵蓋5大策略，包括策略1：融資斷頭抄底（Margin Call Bottom，當融資維持率<140%且融資金額較前日增加50%以上時觸發買進訊號）；策略4：真假外資避險（外資買超>0時，分組匯率變化：台幣升值組為強訊號，計算10/20/60日報酬與Sharpe比率）。框架強調多檔案結構化設計，遵循數據管道（Data Pipeline）原則，將流程拆解為資料蒐集、預處理、策略分析與驗證，避免單一檔案複雜化，方便在Windows/VS Code或Google Colab環境中執行。
+
+考慮到之前遇到的問題，如Python環境依賴衝突（e.g., NumPy 2.0與舊版pandas-ta不相容導致AttributeError，如np.NaN移除）、Windows權限限制（AI工具執行需隔離環境）、API速率限制（yfinance免費版每分鐘限額）與數據格式問題（pandas-ta的.ta擴充僅支援DataFrame而非Series，導致指標計算失敗），本計畫書已整合解決方案：使用uv管理虛擬環境鎖定版本；推薦pandas-ta-openbb作為技術指標庫（NumPy 2.0相容、活躍維護，整合OpenBB生態）；確保所有數據處理使用DataFrame格式；並加入錯誤重試與日誌記錄，避免這些問題重現。目標是支援近3年歷史數據（2022-01-01至2025-11-21）回測，驗證策略效能（如5日勝率>60%、Sharpe比率>1、最大回撤<10%），並產生可視化報告。專案適用於量化交易開發者，優先從Phase 1（外匯與保證金策略）開始，逐步擴展。預估開發時間：2-4週，聚焦免費數據源，無需複雜爬蟲或付費API。輸出包括潔淨CSV數據集、回測報告與圖表，支援學術驗證（如t-test p-value<0.05確認訊號顯著性）。
+
+#### 專案目標
+- **主要目標**：建立可重現的量化研究框架，實現策略1（融資斷頭：條件A=維持率<140%，B=融資增>50%，觸發後計算5/10/20日報酬）與策略4（真假外資：分組A=匯率下降（台幣升值）、B=上升、C=無變，評估Group A強訊號）的完整回測，包含交易成本模擬（台股0.1426%手續費）。
+- **次要目標**：模組化設計，便於單階段測試；整合統計驗證，避免look-ahead bias（僅用當日或歷史數據決策）；處理之前問題，如NumPy 2.0相容（使用pandas-ta-openbb計算RSI、MACD等>130個指標）；生成matplotlib圖表，評估績效（勝率、平均報酬、最大上漲幅度）。
+- **範圍限制**：僅免費API（yfinance、twstock、requests）；回測期近3年；不包含即時交易介接或機器學習模型，聚焦規則基策略研究；解決依賴衝突（鎖定版本，避免NumPy/pandas不匹配）；Windows相容（無需管理員權限，使用uv venv）。
+
+#### 檔案結構與目錄設計
+專案根目錄為`QuantResearch/`，分為數據儲存、腳本執行與環境管理層。結構使用Python模組化原則，每個檔案單一責任（Single Responsibility Principle），透過import串聯，易於Git版本控制。考慮之前依賴衝突問題，所有腳本包含try-except錯誤處理與logging模組記錄失敗（如API限額）。
+
+```
+QuantResearch/
+├── data/                   # 數據儲存層：原始與處理後檔案，自動建立以避免權限錯誤
+│   ├── raw/                # 原始下載CSV（備份，不手動修改，包含時間戳命名防覆蓋）
+│   │   ├── twii_price.csv  # 大盤指數 (^TWII) 歷史數據（日期、開高低收、量）
+│   │   ├── margin_data.csv # 融資維持率與餘額數據（日期、維持率、融資金額）
+│   │   └── forex_data.csv  # 匯率 (USDTWD=X) 數據（日期、收盤價）
+│   └── processed/          # 清洗後主資料集（合併+衍生指標，如60日MA、Z-Score）
+│       └── master_dataset.csv  # 完整表格（Date, TWII_Close, Margin_Rate, Z_Score_Forex, RSI_14等）
+├── scripts/                # 執行腳本層：核心邏輯模組，可獨立運行（python scripts/xx.py）
+│   ├── 01_fetch_data.py    # 數據蒐集（處理API限額重試）
+│   ├── 02_clean_merge.py   # 數據預處理（DataFrame合併+TA指標計算）
+│   ├── 03_strategy_margin.py  # 策略1：融資斷頭邏輯（條件篩選+回測）
+│   ├── 04_strategy_forex.py    # 策略4：真假外資邏輯（分組分析+Sharpe）
+│   ├── utils.py            # 共用工具（日期轉換、錯誤日誌、圖表模板）
+│   └── main.py             # 流程協調器（一鍵執行，支援--phase參數）
+├── .venv/                  # 虛擬環境（uv自動管理，隔離依賴防衝突）
+├── requirements.txt        # 依賴清單（版本鎖定，如pandas>=2.2.2, numpy>=2.0.0）
+├── setup.py                # 環境初始化腳本（一鍵uv install+venv）
+└── README.md               # 執行指南、常見問題（包含NumPy遷移步驟、DataFrame格式注意事項）
+```
+
+此結構確保數據流單向（raw → processed → 分析），解決之前數據格式問題（所有TA計算強制DataFrame）；總檔案大小<100MB，適合雲端同步。
+
+#### 每個檔案的目的、邏輯、依賴與驗證
+每個檔案獨立可執行，但main.py串聯。邏輯聚焦概念步驟，包含之前問題解決（如NumPy相容：使用小寫np.nan；DataFrame轉換：pd.DataFrame(series)防.ta失敗）；依賴最小化，驗證包括單元測試（pytest）與端到端檢查（模擬API限額）。
+
+1. **data/ 資料夾（raw/ 與 processed/）**
+   - **目的**：數據倉庫，raw/儲存原始下載（追蹤來源，避免API重拉浪費限額）；processed/提供標準化輸出（供策略讀取，維持一致性，包含TA指標欄位）。
+   - **核心邏輯**：無程式邏輯，純I/O；腳本自動建立資料夾，檔案命名含日期（e.g., twii_2022-2025.csv），防覆蓋。
+   - **依賴**：無（僅os/pathlib檔案操作）。
+   - **功能驗證**：腳本執行後檢查檔案大小>0、日期連續（pandas.read_csv檢查無缺失>5%）；手動比對官方源（TWSE網站或Yahoo Finance單日數據）；整合pytest確認讀寫無權限錯誤。
+
+2. **01_fetch_data.py**
+   - **目的**：數據蒐集入口，從外部源下載歷史/即時數據，存raw/，作為管道起點；解決API限額（yfinance每分鐘<200呼叫）與Windows網路延遲。
+   - **核心邏輯**：
+     1. 輸入參數：--start='2022-01-01', --end='2025-11-21', --tickers='^TWII,USDTWD=X'（argparse解析）。
+     2. 依序下載：yfinance.download(tickers, start, end, auto_adjust=True)抓股價/匯率（重試3次，延遲1秒防限額）；twstock.Stock('2330').fetch(從TWSE抓融資）；requests.get('https://www.twse.com.tw/exchangeReport/MI_MARGN', headers=User-Agent)爬維持率（解析HTML表格轉CSV）。
+     3. 錯誤處理：try-except記錄失敗（logging.warning('API限額，延遲重試')）；若失敗，fallback到本地raw/檢查。
+     4. 輸出：CSV寫入raw/，欄位標準化（Date as index, Close, Volume等）；print進度。
+   - **依賴套件**：yfinance==0.2.40（下載）、twstock==1.4.3（台股）、requests==2.32.3（爬蟲）、pandas==2.2.2（轉DataFrame）。
+   - **功能驗證**：執行後檢查行數>750（3年交易日）、日期完整>95%；比對Yahoo Finance單日Close無偏差>0.1%；模擬斷網/限額（unittest mock）重試成功100%；pytest確認CSV無NaN。
+
+3. **02_clean_merge.py**
+   - **目的**：預處理核心，合併raw/多源，計算衍生指標（解決pandas-ta Series問題：強制DataFrame.ta()），輸出processed/主資料集；處理缺失值與NumPy精度變更（顯式float64轉換）。
+   - **核心邏輯**：
+     1. 讀取raw/ CSV：pd.read_csv(path, parse_dates=['Date'], index_col='Date')。
+     2. 合併：pd.concat([twii_df, margin_df, forex_df], axis=1, join='outer').fillna(method='ffill')填缺失。
+     3. 清洗：移除異常（e.g., Close變動>20%：df[abs(df.Close.pct_change()) > 0.2].drop()）；標準化精度（df = df.astype('float64')防NumPy 2.0提升規則差異）。
+     4. 計算指標：轉DataFrame（if isinstance(df, pd.Series): df = df.to_frame()）；import pandas_ta as ta; df.ta.rsi(length=14, append=True); df.ta.sma(length=60, append=True); Z-Score = (df['Close'] - df['Close'].rolling(60).mean()) / df['Close'].rolling(60).std()（scipy.stats替代若ta失敗）。
+     5. 輸出：master_dataset.csv（dropna後，欄位：Date, TWII_Close, Margin_Rate, RSI_14, SMA_60, Z_Score）。
+   - **依賴套件**：pandas==2.2.2（合併/rolling）、numpy==2.0.0（陣列）、scipy==1.13.1（Z-Score）、pandas-ta-openbb==0.4.22（TA指標，NumPy 2.0相容，支援>150指標如RSI、MACD）。
+   - **功能驗證**：DataFrame形狀檢查（行數>700，NaN<5%）；指標與Excel手算匹配（e.g., RSI_14首值=50）；t-test (scipy.stats.ttest_1samp) p<0.05確認Z-Score~N(0,1)；分牛熊市（VIX>20定義熊）測試穩定（相關係數>0.95）；pytest單元測試DataFrame轉換無.ta AttributeError。
+
+4. **03_strategy_margin.py**
+   - **目的**：實現策略1融資斷頭，篩選訊號、模擬回測，輸出績效；整合TA指標（如RSI<30確認超賣），避免過度優化。
+   - **核心邏輯**：
+     1. 讀取processed/master_dataset.csv（pd.read_csv, index_col='Date'）。
+     2. 條件：A = df['Margin_Rate'] < 140; B = df['Margin_Amount'].pct_change() > 0.5; trigger = A & B & (df['RSI_14'] < 30)（shift(1)用昨日數據防bias）。
+     3. 模擬回測：trigger_dates = df[trigger].index; for date in trigger_dates: ret_5 = (df.loc[date+pd.Timedelta(5,'D'), 'TWII_Close'] - df.loc[date, 'TWII_Close']) / df.loc[date, 'TWII_Close']。
+     4. 計算：win_rate = (rets_5 > 0).mean(); avg_ret = rets_5.mean(); max_drawdown = (cum_ret / cum_ret.cummax() - 1).min()。
+     5. 輸出：signals.csv（觸發日期、報酬）；matplotlib.plot(cumulative returns曲線)。
+   - **依賴套件**：pandas==2.2.2（篩選/shift）、matplotlib==3.8.4（圖表）、scipy==1.13.1（t-test）、pandas-ta-openbb==0.4.22（RSI整合）。
+   - **功能驗證**：訊號數>30、5日勝率>60%、avg_ret>1%；無look-ahead（backtest僅前瞻數據）；回撤<10%；分熊市（2022年）檢定p<0.05 (ttest_ind(trigger_rets, benchmark_rets))；pytest模擬數據確認邏輯無偏差。
+
+5. **04_strategy_forex.py**
+   - **目的**：實現策略4真假外資，分組分析+Sharpe評估；使用TA確認趨勢（e.g., SMA_60穿越）。
+   - **核心邏輯**：
+     1. 讀取master_dataset.csv。
+     2. 篩選：foreign_buy > 0; rate_change = df['USDTWD_Close'].pct_change(); group_A = (foreign_buy > 0) & (rate_change < -0.005); B = rate_change > 0.005; C = abs(rate_change) < 0.005。
+     3. 計算：rets_10 = group_A.shift(1).cumsum() * df['TWII_Close'].pct_change(10); sharpe = rets_10.mean() / rets_10.std() * np.sqrt(252)。
+     4. 驗證差異：scipy.stats.ttest_ind(group_A_rets, group_B_rets)。
+     5. 輸出：groups_report.csv（各組勝率、Sharpe）；boxplot圖。
+   - **依賴套件**：pandas==2.2.2（groupby/cumsum）、scipy==1.13.1（Sharpe/ttest）、matplotlib==3.8.4（視覺化）、pandas-ta-openbb==0.4.22（SMA確認）。
+   - **功能驗證**：A組勝率>B組15%、Sharpe>1；樣本>20/組；誤觸<20%（假陽性率）；近2年回測p<0.05；pytest分組邏輯（mock DataFrame）無NumPy精度錯誤。
+
+6. **utils.py**
+   - **目的**：共用工具，減少重複；解決日期格式問題（str to datetime防parse錯誤）與日誌（追蹤API失敗）。
+   - **核心邏輯**：
+     1. def parse_date(date_str): return pd.to_datetime(date_str, errors='coerce')。
+     2. def log_error(msg): import logging; logging.basicConfig(level=logging.WARNING); logging.warning(msg)。
+     3. def plot_template(df, title): plt.style.use('seaborn-v0_8'); df.plot(); plt.title(title); plt.savefig('report.png')。
+     4. 匯出：其他腳本from utils import log_error。
+   - **依賴套件**：datetime（內建）、logging（內建）、matplotlib==3.8.4（模板）、pandas==2.2.2（日期）。
+   - **功能驗證**：pytest單元（parse_date('2025-11-21')返回Timestamp）；整合無異常（logging捕獲100%錯誤）；圖表渲染測試（無ImportError）。
+
+7. **main.py**
+   - **目的**：協調器，一鍵執行或分階段；監控依賴（檢查uv venv是否存在）。
+   - **核心邏輯**：
+     1. argparse: --phase=1 (僅fetch), --full (全跑)。
+     2. if phase==1: from scripts.01_fetch_data import run; run(start, end)。
+     3. 彙整：pd.concat([margin_results, forex_results]); 生成總報告PDF（matplotlib+reportlab選用）。
+     4. 錯誤：log_error並exit(1)。
+   - **依賴套件**：argparse（內建）、subprocess（腳本呼叫，內建）。
+   - **功能驗證**：端到端<5分鐘、無崩潰；匹配手動結果（diff CSV<1%）；加0.3%成本後Sharpe>0.5；pytest參數解析。
+
+#### 推薦套件與環境設定
+考慮之前依賴衝突（NumPy 2.0破壞性變更如np.NaN→np.nan、類型提升導致精度損失）與Windows權限（無需sudo，使用user-mode），使用uv管理：
+- **環境初始化**：setup.py: uv venv .venv; uv pip install -r requirements.txt; print('環境就緒，無衝突')。
+- **核心套件清單** (requirements.txt，版本鎖定防未來變更)：
+  - pandas==2.2.2 (數據處理，NumPy 2.0相容)
+  - numpy==2.0.0 (陣列，解決舊版pandas-ta不相容)
+  - scipy==1.13.1, scikit-learn==1.5.1 (統計/分類)
+  - yfinance==0.2.40, twstock==1.4.3, requests==2.32.3 (數據源，加入proxies=若Windows防火牆)
+  - pandas-ta-openbb==0.4.22 (TA指標，取代舊pandas-ta；安裝後df.ta.rsi()；解決Series問題：總是to_frame()；整合OpenBB未來擴展)
+  - matplotlib==3.8.4, pytest==8.3.2 (視覺/測試)
+  - uv==0.4.18 (環境，pip install uv; 比conda輕量，Windows友好)
+- **安裝注意**：Python 3.10+；總依賴<500MB；若.ta失敗，檢查df.shape（需(行,1+)）；numba==0.60.0 (pandas-ta-openbb效能，自動JIT)。
+
+#### 執行流程與開發步驟
+1. **環境準備**：mkdir QuantResearch; cd QuantResearch; python setup.py（自動uv init+install）；解決權限：--user flag若需。
+2. **Phase 1 (Week 1，外匯/保證金)**：python scripts/01_fetch_data.py --tickers '^TWII,USDTWD=X'；python scripts/02_clean_merge.py（計算TA，確認DataFrame.ta無錯）。
+3. **Phase 2 (Week 2，策略1)**：python scripts/03_strategy_margin.py；檢查勝率>60%。
+4. **Phase 3 (Week 3+，策略4+整合)**：python scripts/04_strategy_forex.py；python main.py --full（一鍵，記錄日誌）。
+5. **迭代與測試**：每階段git commit；Google Colab備份（!uv pip install）；API限額：分批下載（e.g., 1年/次）。
+6. **輸出格式**：CSV報告（訊號/績效）；PNG/PDF圖表；README包含debug（如NumPy遷移：搜np.nan替換）。
+
+#### 驗證與測試策略
+- **單元驗證**：pytest每個函數（e.g., test_ta(): df = pd.DataFrame({'Close':}); assert df.ta.sma(2).iloc[-1] == 100.5）；涵蓋邊界（NaN、精度）。
+- **整合驗證**：main.py全跑，檢查無NaN/偏差<1%；模擬成本（rets *= 0.997）。
+- **策略效能**：勝率>60%、Sharpe>1、p-value<0.05 (ttest_ind訊號vs基準)；Monte Carlo（1000次隨機重抽樣）穩定性>95%。
+- **偏差檢查**：無look-ahead (shift(1)); 樣本>500；分市況檢定（牛: TWII>MA_200）；解決之前問題：pytest mock API限額，確認重試。
+- **工具**：VS Code debugger（斷點ta計算）；Jupyter原型（%run scripts/02_clean_merge.py測試DataFrame）。
+
+#### 結論與AI設計工具交接
+此自包含計畫書提供完整藍圖，無需外部文件依賴，所有細節（邏輯、問題解決如pandas-ta-openbb遷移步驟：pip uninstall pandas-ta; pip install pandas-ta-openbb; df.to_frame()前置）已明確寫出。適合AI工具（如GitHub Copilot、Claude）從utils.py開始生成程式碼，逐步實作01-04腳本，預期輸出可執行專案。未來擴展（如加策略2期貨Z-Score -5/-20門檻），直接修改03.py模板。強調實務可靠性：環境隔離防衝突、DataFrame格式防.ta錯誤、版本鎖定防NumPy更新。若需調整，請指定階段。
+
+引用：
+[1] Pandas-ta-Xiang-Rong-Xing-Xiu-Fu-Ji-Hua.txt https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/110309502/f87b5af9-4177-49ed-b20e-f4d06ab14252/Pandas-ta-Xiang-Rong-Xing-Xiu-Fu-Ji-Hua.txt
+
+建議的英文檔名（含用途與內容關鍵字）：
+
+`QuantResearch_TW_MarginForex_StrategyPlan_v1.md`
+
+引用：
+[1] pandas-ta-openbb https://pypi.org/project/pandas-ta-openbb/
+[2] pandas-ta-openbb https://pypistats.org/packages/pandas-ta-openbb
+[3] OpenBB Econometrics - Python Packages & Extensions https://docs.openbb.co/python/extensions/data-processing/econometrics
+[4] What happened to pandas-ta python package? : r/algotrading https://www.reddit.com/r/algotrading/comments/1ldm0kb/what_happened_to_pandasta_python_package/
+[5] pandas-ta-openbb https://pydigger.com/pypi/pandas-ta-openbb
+[6] Managing Python Projects With uv: An All-in-One Solution https://realpython.com/python-uv/
+[7] Rate Limits - yahooinc https://help.yahooinc.com/dsp-api/docs/rate-limits
+[8] OpenBB Quantitative - Python Packages & Extensions https://docs.openbb.co/python/extensions/data-processing/quantitative
+[9] uv: The Fastest Python Package Manager https://www.digitalocean.com/community/conceptual-articles/uv-python-package-manager
+[10] What is the query limit on Yahoo's Finance API? - Stack Overflow https://stackoverflow.com/questions/9346582/what-is-the-query-limit-on-yahoos-finance-api
+[11] Releases · OpenBB-finance/OpenBB https://github.com/OpenBB-finance/OpenBB/releases
+[12] The Ultimate Guide to the Fastest Python Package Manager https://www.datacamp.com/tutorial/python-uv
+[13] Yahoo財經顯示「請求過多。速率限制」 - Reddit https://www.reddit.com/r/learnpython/comments/1isuc4h/yfinance_saying_too_many_requestsrate_limited/
+[14] ModuleNotFoundError: No module named 'pkg_resources ... https://stackoverflow.com/questions/78468111/modulenotfounderror-no-module-named-pkg-resources-when-importing-pandas-ta
+[15] Python Tutorial: UV - A Faster, All-in-One Package ... https://www.youtube.com/watch?v=AMdG7IjgSPM
+[16] Navigating the Yahoo Finance API Call Limit for Optimal Data Access https://apipark.com/technews/RZtyppGC.html
+[17] pandas-ta-remake 1.0.4 on PyPI https://libraries.io/pypi/pandas-ta-remake
+[18] astral-sh/uv: An extremely fast Python package and project ... https://github.com/astral-sh/uv
+[19] Whats the rate limit on yahoo finance (unofficial api or web scraping) https://www.reddit.com/r/algotrading/comments/1mntfnv/whats_the_rate_limit_on_yahoo_finance_unofficial/
+[20] pandas-ta-openbb - PyPI Package Maintainers - Socket.dev https://socket.dev/pypi/package/pandas-ta-openbb/maintainers
