@@ -66,13 +66,13 @@ def main():
     try:
         # --- 1. 讀取原始數據 ---
         logging.info("讀取原始 CSV 檔案...")
-        twii_df = pd.read_csv(RAW_DATA_DIR / "TWII.csv", parse_dates=['Date'], index_col='Date')
-        usdtwd_df = pd.read_csv(RAW_DATA_DIR / "USDTWD.csv", parse_dates=['Date'], index_col='Date')
+        twii_df = pd.read_csv(RAW_DATA_DIR / "TWII.csv", parse_dates=['Date'], index_col='Date', encoding='utf-8')
+        usdtwd_df = pd.read_csv(RAW_DATA_DIR / "USDTWD.csv", parse_dates=['Date'], index_col='Date', encoding='utf-8')
 
         # 融資數據可能是空的，需要做例外處理
         margin_path = RAW_DATA_DIR / "margin_data.csv"
         if margin_path.exists() and margin_path.stat().st_size > 0:
-             margin_df = pd.read_csv(margin_path, parse_dates=['Date'], index_col='Date')
+             margin_df = pd.read_csv(margin_path, parse_dates=['Date'], index_col='Date', encoding='utf-8')
              # 只保留我們需要的欄位
              margin_df = margin_df[['Margin_Balance_Value', 'Margin_Maintenance_Ratio']]
         else:
@@ -82,7 +82,7 @@ def main():
         # 新增：讀取三大法人數據
         investors_path = RAW_DATA_DIR / "institutional_investors.csv"
         if investors_path.exists() and investors_path.stat().st_size > 0:
-            investors_df = pd.read_csv(investors_path, parse_dates=['date'])
+            investors_df = pd.read_csv(investors_path, parse_dates=['date'], encoding='utf-8')
             # 將 'date' 欄位設為索引並重新命名
             investors_df = investors_df.rename(columns={'date': 'Date'}).set_index('Date')
         else:
@@ -171,7 +171,7 @@ def main():
 
         # --- 6. 儲存處理完成的數據集 ---
         output_path = PROCESSED_DATA_DIR / "master_dataset.csv"
-        master_df.to_csv(output_path)
+        master_df.to_csv(output_path, encoding='utf-8')
         logging.info(f"成功將主數據集儲存至 {output_path}")
         logging.info(f"數據集維度: {master_df.shape}")
         logging.info("主數據集預覽 (前五行):")

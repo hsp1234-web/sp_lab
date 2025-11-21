@@ -102,7 +102,7 @@ def run_backtest(df: pd.DataFrame, hold_days: list = [5, 10, 20]):
 
     # 儲存訊號與報酬
     signals_path = RESULTS_DIR / "strategy_margin_signals.csv"
-    results_df.to_csv(signals_path)
+    results_df.to_csv(signals_path, encoding='utf-8')
     logging.info(f"詳細訊號與報酬已儲存至 {signals_path}")
 
     # --- 4. 繪製累積報酬圖 (以持有5天為例) ---
@@ -125,7 +125,7 @@ def main():
     try:
         # 讀取主數據集
         master_dataset_path = PROCESSED_DATA_DIR / "master_dataset.csv"
-        df = pd.read_csv(master_dataset_path, parse_dates=['Date'], index_col='Date')
+        df = pd.read_csv(master_dataset_path, parse_dates=['Date'], index_col='Date', encoding='utf-8')
         logging.info(f"成功讀取主數據集，維度: {df.shape}")
 
         # 執行回測

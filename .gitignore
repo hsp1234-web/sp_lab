@@ -121,3 +121,12 @@ logs/
 fetch_data.log
 clean_merge.log
 main.log
+
+# Database and large files
+*.parquet
+*.duckdb
+*.db
+*.sqlite
+*.h5
+*.pkl
+

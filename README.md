@@ -6,9 +6,10 @@
 
 ## ✨ 核心特色
 
+-   **跨平台支援**：完全相容 **Windows** 與 **Linux** 環境，實現「寫一次，到處執行」。
 -   **一鍵 Colab 執行**：透過 `sp_lab.ipynb` 提供一鍵執行的 Colab 環境，無需本地設定。
 -   **現代化工具鏈**：使用 `uv` 進行高速的 Python 環境與依賴管理。
--   **受控的執行入口**：透過根目錄的 `run.py` 腳本，解決模組匯入衝突，確保執行的穩定性。
+-   **受控的執行入口**：透過根目錄的 `main.py` 與 `run.py` 腳本，解決模組匯入衝突，確保執行的穩定性。
 -   **測試驅動開發 (TDD)**：所有核心模組均有對應的單元測試，確保程式碼的穩健性與可維護性。
 -   **模組化管線**：從數據獲取、清洗、特徵工程、統計分析、訊號生成到回測與視覺化，皆為獨立且可串連的模組。
 -   **貼近真實的回測**：內建成本與滑價模擬，讓策略評估更具參考價值。
@@ -25,6 +26,9 @@
 uv venv
 
 # 2. 啟用虛擬環境
+# Windows:
+.venv\Scripts\activate
+# Linux/macOS:
 source .venv/bin/activate
 
 # 3. 安裝所有必要的依賴
@@ -33,12 +37,24 @@ uv pip install -r requirements.txt
 
 ### 2. 執行完整流程
 
+#### 數據獲取與清洗 (Data Pipeline)
+
+使用 `main.py` 作為統一入口：
+
+```bash
+# 獲取數據 (請確保路徑不含中文字元以避免編碼問題)
+python main.py fetch --start 2023-01-01 --end 2023-12-31
+
+# 清洗數據
+python main.py clean
+```
+
+#### 策略回測 (Backtest Pipeline)
+
 透過專案根目錄的 `run.py` 腳本，即可一鍵執行完整的端到端回測流程。
 
 ```bash
-# (請確保虛擬環境已啟用)
-
-# 🚀 執行！
+# 🚀 執行回測！
 python run.py
 ```
 
@@ -48,10 +64,10 @@ python run.py
 
 ```bash
 # 執行所有測試
-PYTHONPATH=. uv run pytest
+uv run pytest
 
 # 執行特定檔案的測試
-PYTHONPATH=. uv run pytest tests/test_backtest.py
+uv run pytest tests/test_backtest.py
 ```
 
 ## 📂 專案結構
@@ -60,45 +76,32 @@ PYTHONPATH=. uv run pytest tests/test_backtest.py
 .
 ├── AGENTS.md
 ├── data
-│   └── raw
-├── docs
-│   ├── BACKTEST_CONFIG.md
-│   ├── DEPENDENCY_NOTES.md
-│   └── UV_DEPENDENCY_GUIDE.md
+│   ├── raw              # 原始數據
+│   └── processed        # 清洗後的數據
+├── docs                 # 專案文件
 ├── index_futures_volatility_quant_project.md
-├── log.md
+├── log.md               # 開發日誌
 ├── requirements.txt
-├── src
+├── main.py              # 數據管線入口
+├── run.py               # 回測管線入口
+├── src                  # 核心程式碼
 │   ├── __init__.py
-│   ├── backtest.py
-│   ├── clean.py
-│   ├── cost.py
-│   ├── feat.py
-│   ├── fetch.py
-│   ├── sp_signal.py
-│   ├── stats.py
-│   └── viz.py
-└── tests
-    ├── sample_parquets
-    │   ├── clean_gspc_for_feat.parquet
-    │   ├── dirty_gspc.parquet
-    │   └── features_for_stats.parquet
-    ├── test_backtest.py
-    ├── test_clean.py
-    ├── test_cost.py
-    ├── test_feat.py
-    ├── test_fetch.py
-    ├── test_integration.py
-    ├── test_sp_signal.py
-    ├── test_stats.py
-    └── test_viz.py
+│   ├── backtest.py      # 回測引擎
+│   ├── clean.py         # 數據清洗
+│   ├── cost.py          # 成本模型
+│   ├── feat.py          # 特徵工程
+│   ├── fetch.py         # 數據獲取
+│   ├── sp_signal.py     # 訊號生成
+│   ├── stats.py         # 統計分析
+│   └── viz.py           # 視覺化
+└── tests                # 單元測試
 ```
 
 ## 📚 核心模組簡介
 
--   **`src/fetch.py`**: 負責從網路 API (如 yfinance) 下載原始市場數據。
+-   **`src/fetch.py`**: 負責從網路 API (如 Twstock, FinMind) 下載原始市場數據。
 -   **`src/clean.py`**: 對原始數據進行清洗、處理缺值、對齊交易日等。
--   **`src/feat.py`**: 計算技術指標（如 ATR、移動平均線）作為策略的基礎特徵。
+-   **`src/feat.py`**: 計算技術指標（如 RSI、移動平均線）作為策略的基礎特徵。
 -   **`src/stats.py`**: 執行統計分析與假說檢定，驗證策略的有效性。
 -   **`src/sp_signal.py`**: 根據統計結果，生成具體的買賣訊號 (`1`, `-1`, `0`)。
 -   **`src/backtest.py`**: 核心回測引擎，根據訊號模擬交易過程，並產出交易日誌與權益曲線。

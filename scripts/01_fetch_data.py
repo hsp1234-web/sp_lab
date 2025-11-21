@@ -78,7 +78,7 @@ def fetch_twii_data_with_twstock(start_date, end_date):
         df = df[(df.index >= start_dt) & (df.index <= end_dt)]
 
         output_path = RAW_DATA_DIR / "TWII.csv"
-        df.to_csv(output_path)
+        df.to_csv(output_path, encoding='utf-8')
         logging.info(f"成功將台股數據儲存至 {output_path}")
         return True
     except Exception as e:
@@ -128,7 +128,7 @@ def fetch_forex_data_with_finmind(start_date, end_date):
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
 
         output_path = RAW_DATA_DIR / "USDTWD.csv"
-        df.to_csv(output_path)
+        df.to_csv(output_path, encoding='utf-8')
         logging.info(f"成功將 USDTWD 匯率數據從 FinMind 儲存至 {output_path}")
         return True
     except requests.exceptions.RequestException as e:
@@ -200,7 +200,7 @@ def fetch_twse_margin_data(start_date, end_date):
     df = df.sort_values(by='Date').set_index('Date')
 
     output_path = RAW_DATA_DIR / "margin_data.csv"
-    df.to_csv(output_path)
+    df.to_csv(output_path, encoding='utf-8')
     logging.info(f"成功將融資維持率數據儲存至 {output_path}")
     return True
 
@@ -232,7 +232,7 @@ def fetch_institutional_investors_data(start_date, end_date):
         df = pd.DataFrame(data['data'])
 
         output_path = RAW_DATA_DIR / "institutional_investors.csv"
-        df.to_csv(output_path, index=False)
+        df.to_csv(output_path, index=False, encoding='utf-8')
         logging.info(f"成功將三大法人數據從 FinMind 儲存至 {output_path}")
         return True
     except requests.exceptions.RequestException as e:
