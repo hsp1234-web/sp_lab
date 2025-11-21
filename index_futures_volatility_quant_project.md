@@ -8,21 +8,16 @@
 
 ---
 
-## 📈 目前進度 (截至 2025-11-09)
+## 📈 目前進度 (截至 2025-11-20)
 
-**所有核心模組的第一版功能與單元測試均已開發完成。**
+**專案已完成數據處理的基礎設施建設，具備了獲取、清洗與合併多種數據源的能力。**
 
--   [x] **`src/fetch.py`**: 數據獲取
--   [x] **`src/clean.py`**: 數據清洗
--   [x] **`src/feat.py`**: 特徵工程
--   [x] **`src/stats.py`**: 統計檢定
--   [x] **`src/sp_signal.py`**: 訊號生成
--   [x] **`src/backtest.py`**: 回測引擎
--   [x] **`src/cost.py`**: 成本模型
--   [x] **`src/viz.py`**: 視覺化與績效報告
--   [x] **`tests/`**: 所有對應模組的單元測試與整合測試
+-   [x] **`scripts/01_fetch_data.py`**: 擴充數據獲取能力，現包含台股指數 (twstock)、美元兌台幣匯率 (FinMind)，以及**三大法人買賣超**數據 (FinMind)。
+-   [x] **`scripts/02_clean_merge.py`**: 建立數據清洗與合併管線，能將多個來源的原始數據整合成一個主數據集 `master_dataset.csv`。
+-   [x] **`main.py`**: 開發了主執行腳本，提供統一的命令列介面，可用於觸發數據獲取與清洗流程。
+-   [x] **`.gitignore`**: 已設定忽略 `results/` 和 `logs/` 等由腳本生成的目錄。
 
-專案已具備從數據下載、分析、回測到產出報告的完整端到端 (End-to-End) 能力。
+專案現已具備穩固的數據處理基礎，下一步將專注於策略的開發與回測。
 
 ---
 
@@ -73,40 +68,21 @@
 project-root/
 │
 ├─ data/                         # 資料儲存區
-│  ├─ raw/                       # 原始下載 Parquet 檔案
-│  └─ proc/                      # 清洗後與特徵工程結果
+│  ├─ raw/                       # 原始下載的 CSV 檔案
+│  └─ processed/                 # 清洗與合併後的主數據集
 │
-├─ src/                          # 核心程式模組
-│  ├─ cfg.py                     # 環境與參數設定
-│  ├─ fetch.py                   # 下載與初步匯入
-│  ├─ clean.py                   # 清洗、對齊交易日
-│  ├─ feat.py                    # 特徵工程（ATR、MA、報酬率等）
-│  ├─ stats.py                   # 統計實驗與假說驗證
-│  ├─ sp_signal.py                  # 交易訊號生成
-│  ├─ backtest.py                # 回測引擎（含交易邏輯）
-│  ├─ cost.py                    # 成本與滑價模擬
-│  ├─ viz.py                     # 結果視覺化與報告
-│  └─ util.py                    # 共用工具模組
-│
-├─ tests/                        # 單元與整合測試
-│  ├─ test_fetch.py
-│  ├─ test_clean.py
-│  ├─ test_feat.py
-│  ├─ test_stats.py
-│  ├─ test_sp_signal.py
-│  ├─ test_backtest.py
-│  └─ sample_parquets/           # 測試專用小樣本資料
+├─ scripts/                      # 主要的執行腳本
+│  ├─ 01_fetch_data.py           # 數據獲取
+│  └─ 02_clean_merge.py          # 數據清洗與合併
 │
 ├─ docs/                         # 文件與計畫說明
-│  ├─ PROJECT_PLAN.md
-│  ├─ UV_DEPENDENCY_GUIDE.md
-│  ├─ TDD_GUIDE.md
-│  └─ ARCHITECTURE.md
+│  └─ index_futures_volatility_quant_project.md
 │
 ├─ .python-version
 ├─ pyproject.toml
 ├─ uv.lock
 ├─ README.md
+├─ main.py                       # 主執行入口
 └─ .gitignore
 ```
 
@@ -117,8 +93,8 @@ project-root/
 | 模組          | 功能摘要                       | 輸入               | 輸出               |
 | ----------- | -------------------------- | ---------------- | ---------------- |
 | cfg.py      | 全域設定、參數常數                  | 無                | 全域參數             |
-| fetch.py    | 下載 TAIFEX、yfinance、FRED 資料 | 網路 API           | raw parquet      |
-| clean.py    | 清洗與交易日對齊                   | raw parquet      | proc parquet     |
+| 01_fetch_data.py    | 下載台股 (twstock)、匯率 (FinMind)、法人數據 (FinMind) | 網路 API           | raw CSV      |
+| 02_clean_merge.py    | 清洗與合併多個數據源                   | raw CSV      | processed CSV     |
 | feat.py     | 特徵工程（ATR、MA、報酬率）           | proc parquet     | features parquet |
 | stats.py    | 驗證四大波動假說                   | features parquet | 統計結果 parquet     |
 | sp_signal.py   | 產生進出場訊號                    | features parquet | signals parquet  |
